@@ -1,0 +1,38 @@
+{
+  "verification": "Real HTTP requests against running uvicorn server",
+  "source": "SIMULATED",
+  "seed": 42,
+  "daily": {
+    "included_jobs": 15,
+    "excluded_jobs": 10,
+    "avoided_g": 21013.508599999997,
+    "reduction_pct": 39.798389530185595,
+    "projected_weekly_g": 147094.56019999998
+  },
+  "replay": {
+    "total_jobs": 175,
+    "included_jobs": 105,
+    "avoided_g": 167143.517135,
+    "reduction_pct": 40.65824235350155,
+    "seed": 42,
+    "source": "SIMULATED"
+  },
+  "pending_approvals_after_first_cycle": 7,
+  "verified": [
+    "offline assets",
+    "OpenAPI",
+    "health",
+    "cycle",
+    "idempotence",
+    "curve",
+    "approval",
+    "rejection",
+    "audit",
+    "CSV",
+    "JSON",
+    "replay",
+    "add job",
+    "advance",
+    "reset"
+  ]
+}

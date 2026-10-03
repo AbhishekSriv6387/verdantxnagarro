@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1316"><title>Verdant — Carbon-aware scheduling</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css"><script src="/static/app.js" defer></script>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#overview"><span class="brand-icon">v<span>•</span></span>verdant<span class="brand-dot">.</span></a>
+  <div class="workspace"><span class="workspace-icon">DP</span><div>Data Platform<small>Carbon intelligence workspace</small></div></div>
+  <p class="nav-label">WORKSPACE</p>
+  <nav aria-label="Main navigation">
+    <a href="#overview" class="active"><span>◫</span>Overview</a>
+    <a href="#queue"><span>▤</span>Job queue <b id="nav-jobs">25</b></a>
+    <a href="#approvals"><span>◇</span>Approval inbox <b id="nav-approvals">0</b></a>
+    <a href="#audit"><span>≡</span>Decision log</a>
+    <button id="nav-replay"><span>↻</span>7-day replay</button>
+  </nav>
+  <div class="sidebar-bottom"><div class="agent-state"><span class="pulse"></span> Guardrails active</div>
+    <p>Lower emissions.<br>Deadlines protected.</p>
+    <div class="side-rule"><span>Scheduling step</span><b>30 min</b></div>
+    <div class="side-rule"><span>Human oversight</span><b>On</b></div>
+    <a class="small-link" href="/docs" target="_blank" rel="noopener">Explore the API ↗</a>
+    <div class="build-label">HACKATHON EDITION · 2026</div>
+  </div>
+</aside>
+<div class="app-shell">
+  <header class="topbar"><div><span class="breadcrumb">Workspace</span><span class="slash">/</span>Overview</div>
+    <div class="topbar-right"><span class="clock-label">DEMO CLOCK</span><time id="clock">Connecting…</time><span class="avatar">DP</span></div>
+  </header>
+  <main id="overview">
+    <section class="hero"><div><div class="eyebrow"><span class="tiny-dot"></span> CARBON-AWARE BATCH SCHEDULER</div>
+      <h1>A greener window.<br><span>The same deadline.</span></h1>
+      <p>Put flexible workloads where the grid is cleaner.<br>Let your team decide when the stakes are higher.</p></div>
+      <div class="hero-actions"><button class="primary" id="run-cycle"><span>✦</span> Run agent cycle <span>↗</span></button>
+        <label class="watch-label"><input type="checkbox" id="watch"> Watch queue every 30s</label>
+        <span class="hero-caption">Deterministic decisions. Every rule recorded.</span></div>
+    </section>
+    <div class="notice"><span class="badge simulated" id="source-badge">SIMULATED</span><p id="source-note">Seeded grid data · no API key needed · all savings are modeled estimates.</p><span class="notice-detail">R = one job run</span></div>
+    <section class="kpis" aria-label="Carbon performance">
+      <article class="kpi featured"><div class="kpi-label">Estimated CO₂e avoided <span>↘</span></div><div class="kpi-value"><span id="avoided">0</span><small>g</small></div><p id="included-note">Run the agent to compare schedules</p><span class="kpi-source source-text">SIMULATED</span></article>
+      <article class="kpi"><div class="kpi-label">Carbon reduction <span>◎</span></div><div class="kpi-value"><span id="reduction">0</span><small>%</small></div><p>Against fixed 14:00 local scheduling</p><span class="kpi-source source-text">SIMULATED</span></article>
+      <article class="kpi"><div class="kpi-label">Weekly projection <span>↗</span></div><div class="kpi-value"><span id="weekly">0</span><small>g</small></div><p>Applied workload × 7 days <button class="text-button" id="replay-inline">Verify in replay ↗</button></p><span class="kpi-source source-text">SIMULATED</span></article>
+      <article class="kpi"><div class="kpi-label">Awaiting your decision <span>◇</span></div><div class="kpi-value" id="approval-count">0</div><p>Protected jobs stay in your hands</p><a href="#approvals" class="text-link">Open approval inbox →</a></article>
+    </section>
+    <section class="insight-grid">
+      <article class="panel chart-panel"><div class="panel-heading"><div><h2>Find the cleaner window</h2><p id="chart-subtitle">Select a job to explore grid carbon intensity</p></div><span id="chart-source" class="badge simulated">SIMULATED</span></div>
+        <div class="chart-legend"><span><i class="legend-line green"></i>Grid intensity</span><span><i class="legend-line amber"></i>14:00 baseline</span><span><i class="legend-line white"></i>Chosen window</span></div>
+        <div id="chart" class="chart" aria-live="polite"><p class="empty">Loading intensity curve…</p></div>
+        <div class="chart-footer"><span>g CO₂e / kWh · zone local time</span><span id="chart-reason">Seeded 48-hour forecast</span></div>
+      </article>
+      <article class="panel selected-panel"><div class="panel-heading"><h2>Decision spotlight</h2><span class="tiny-dot"></span></div><div id="spotlight"><p class="empty">Select a job below.</p></div></article>
+    </section>
+    <section id="queue" class="panel section-panel">
+      <div class="panel-heading"><div><div class="section-eyebrow">THE WORKLOAD</div><h2>Job queue <span id="queue-count" class="count">25</span></h2><p>Choose a row to inspect its carbon curve and scheduling rationale.</p></div><button id="add-job" class="secondary">＋ Add job</button></div>
+      <div class="toolbar"><input id="job-search" type="search" aria-label="Search jobs" placeholder="Search jobs or owners…"><select id="status-filter" aria-label="Filter status"><option value="">All statuses</option><option>pending</option><option>scheduled</option><option value="needs_approval">needs approval</option><option>approved</option><option>rejected</option><option>completed</option></select><select id="zone-filter" aria-label="Filter zone"><option value="">All zones</option><option>DE</option><option>US-CAL-CISO</option><option>IN-WE</option></select><span class="toolbar-note">Times shown in each job’s zone</span></div>
+      <div class="table-scroll"><table><thead><tr><th>Job / owner</th><th>Zone</th><th>Status</th><th>Baseline → chosen</th><th>SCI before → after</th><th>Est. avoided</th><th></th></tr></thead><tbody id="job-rows"></tbody></table></div>
+      <div class="table-footer"><span id="queue-summary">25 jobs · 3 zones · one smarter schedule</span><div>Export SCI report <a href="/api/report/export?format=csv" download>CSV ↓</a><a href="/api/report/export?format=json" download>JSON ↓</a></div></div>
+    </section>
+    <section id="approvals" class="section-panel"><div class="section-heading"><div><div class="section-eyebrow">HUMAN IN THE LOOP</div><h2>Approval inbox <span class="count" id="inbox-count">0</span></h2><p>Critical workloads and dependency chains need an explicit decision.</p></div><span class="badge neutral">Never auto-moved</span></div><div id="approval-list" class="approval-grid"></div></section>
+    <section id="audit" class="panel section-panel"><div class="panel-heading"><div><div class="section-eyebrow">A CLEAR PAPER TRAIL</div><h2>Decision log</h2><p>Append-only evidence, from intensity intervals to the rules that fired.</p></div><span class="badge neutral">AUDITABLE BY DESIGN</span></div>
+      <div class="toolbar"><select id="log-outcome" aria-label="Filter decision outcome"><option value="">All outcomes</option><option>AUTO_RESCHEDULED</option><option>KEEP_NOW</option><option>NEEDS_APPROVAL</option><option>NO_FEASIBLE_WINDOW</option><option>APPROVED</option><option>REJECTED</option><option>COMPLETED</option></select><select id="log-actor" aria-label="Filter actor"><option value="">All actors</option><option>agent</option><option>human</option></select><label class="history-label"><input id="all-runs" type="checkbox"> Include past demo runs</label></div><div id="log-list"></div>
+    </section>
+    <section class="demo-controls"><div><h3>Your demo, on your time.</h3><p>Advance the clock to complete simulated runs or replay a seeded week.</p></div><div><button id="advance" class="secondary">＋ 1 hour</button><button id="replay" class="secondary">↻ Replay 7 days</button><button id="reset" class="quiet">Reset demo</button></div></section>
+    <footer>VERDANT <span>Carbon-aware by design. Accountable by default.</span><span>Modeled SCI · no real workloads dispatched</span></footer>
+  </main>
+</div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="job-dialog"><form id="job-form"><div class="modal-header"><div><div class="section-eyebrow">NEW WORKLOAD</div><h2>Add a batch job</h2></div><button type="button" class="icon-button close-dialog" aria-label="Close add-job dialog">×</button></div>
+  <p class="muted">Baseline is 14:00 in the job’s zone. Enter all window timestamps in UTC.</p>
+  <div class="form-grid"><label class="full">Job name<input name="name" required maxlength="120" placeholder="e.g. Customer feature pipeline"></label><label>Owner<input name="owner" required maxlength="100" value="Data Platform"></label><label>Type<select name="type"><option value="etl">ETL pipeline</option><option value="ml_training">ML training</option><option value="report">Report</option></select></label><label>Grid zone<select name="zone"><option value="DE">Germany · DE</option><option value="US-CAL-CISO">California · US-CAL-CISO</option><option value="IN-WE">Western India · IN-WE</option></select></label><label>Criticality<select name="criticality"><option value="flexible">Flexible</option><option value="hard_deadline">Hard deadline</option><option value="business_critical">Business critical</option></select></label><label>Duration (minutes)<input name="est_duration_min" type="number" min="1" max="720" value="60" required></label><label>IT power (kW)<input name="power_kw" type="number" min="0.001" max="10000" step="0.001" value="4" required></label><label>Earliest start · UTC<input name="earliest_start" type="datetime-local" required></label><label>SLA deadline · UTC<input name="sla_deadline" type="datetime-local" required></label><label class="full">Dependencies <small>Optional; use Ctrl / Cmd to select multiple</small><select name="depends_on" id="dependency-select" multiple size="3"></select></label></div>
+  <p id="form-error" class="form-error" role="alert"></p><div class="modal-actions"><button type="button" class="secondary close-dialog">Cancel</button><button class="primary" type="submit">Add to queue →</button></div>
+</form></dialog>
+<dialog id="replay-dialog"><div class="modal-header"><div><div class="section-eyebrow">THE SEVEN-DAY EXPERIMENT</div><h2>A week of cleaner compute</h2></div><button class="icon-button close-dialog" aria-label="Close replay">×</button></div><div id="replay-content"></div></dialog>
+<dialog id="reset-dialog"><div class="modal-header"><h2>Start a fresh demo?</h2><button class="icon-button close-dialog" aria-label="Close reset">×</button></div><p>The queue and demo clock return to their starting state. Previous decisions remain in the audit log.</p><div class="modal-actions"><button class="secondary close-dialog">Cancel</button><button id="confirm-reset" class="primary">Reset demo</button></div></dialog>
+</body></html>
