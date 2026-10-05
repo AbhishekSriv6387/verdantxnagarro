@@ -32,7 +32,7 @@ class Curve(BaseModel):
     reason: str
     points: list[Point]
 
-    def integrate(self, start: datetime, end: datetime) -> tuple[float, list[dict]]:
+    def integrate(self, start: datetime, end: datetime, evidence: bool = True) -> tuple[float, list[dict]]:
         """Piecewise constant intensity, weighted by exact overlap seconds."""
         cursor = start
         weighted = 0.0
@@ -45,7 +45,8 @@ class Curve(BaseModel):
                 raise ValueError("Carbon curve has gaps or overlapping intervals")
             seconds = (right - left).total_seconds()
             weighted += seconds * p.intensity
-            used.append({"start": left.isoformat(), "end": right.isoformat(),
+            if evidence:
+                used.append({"start": left.isoformat(), "end": right.isoformat(),
                          "intensity_g_kwh": p.intensity, "source": p.source, "kind": p.kind})
             cursor = right
         if cursor != end or end <= start:
@@ -65,7 +66,7 @@ class SyntheticProvider:
         cursor = start.replace(minute=(start.minute // 30) * 30, second=0, microsecond=0)
         end = max(end, cursor + timedelta(hours=48))
         points = []
-        base = {"DE": 350, "US-CAL-CISO": 260, "IN-WE": 620}[zone]
+        base = {"DE": 350, "US-CAL-CISO": 260, "IN-WE": 620, "GB": 200}[zone]
         while cursor < end:
             local = cursor.astimezone(local_zone(zone))
             hour = local.hour + local.minute / 60
@@ -144,16 +145,21 @@ class ElectricityMapsProvider:
 class FallbackProvider:
     def __init__(self, settings: Settings, live: CarbonProvider | None = None):
         self.settings = settings
-        self.live = live or ElectricityMapsProvider(settings)
+        from app.providers.additional import RecordedProvider, UKCarbonProvider
+        self.live = live or (UKCarbonProvider(settings) if settings.carbon_provider == "uk" else
+                             RecordedProvider(settings.recorded_path) if settings.carbon_provider == "recorded" else
+                             ElectricityMapsProvider(settings))
         self.synthetic = SyntheticProvider(settings.seed)
 
     def curve(self, zone: str, start: datetime, end: datetime) -> Curve:
-        reason = "No Electricity Maps token configured"
-        if self.settings.electricity_token:
+        reason = "Synthetic provider selected" if self.settings.carbon_provider == "synthetic" else "No Electricity Maps token configured"
+        if self.settings.carbon_provider in ("uk", "recorded") or (self.settings.electricity_token and self.settings.carbon_provider != "synthetic"):
             try:
-                return self.live.curve(zone, start, end)
-            except (httpx.HTTPError, ValueError, KeyError, TypeError):
-                reason = "Electricity Maps unavailable or full-window coverage missing"
+                curve = self.live.curve(zone, start, end)
+                curve.integrate(start, end)
+                return curve
+            except (httpx.HTTPError, ValueError, KeyError, TypeError, OSError):
+                reason = "Selected provider unavailable or full-window coverage missing"
                 logger.info("provider_fallback", extra={"zone": zone})
         result = self.synthetic.curve(zone, start, end)
         result.reason = reason

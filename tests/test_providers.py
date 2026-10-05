@@ -67,3 +67,47 @@ def test_live_full_coverage_and_cache():
     assert provider.curve("DE", NOW, NOW + timedelta(hours=24)) == first
     assert len(calls) == 3
     assert calls[0].url.params["horizonHours"] == "48"
+
+
+@pytest.mark.parametrize("invalid", [False, "gap", "overlap", "nan", "zone"])
+def test_uk_full_coverage_or_whole_fallback(invalid):
+    from app.providers.additional import UKCarbonProvider
+    rows = [{"from": (NOW+timedelta(minutes=30*i)).isoformat(),
+             "to": (NOW+timedelta(minutes=30*(i+1))).isoformat(),
+             "intensity": {"forecast": 200+i}} for i in range(96)]
+    if invalid == "gap": rows.pop(3)
+    if invalid == "overlap": rows.append(rows[3])
+    if invalid == "nan": rows[3]["intensity"]["forecast"] = "NaN"
+    settings = Settings(carbon_provider="uk", retries=0)
+    calls = []
+    def handler(req):
+        calls.append(req)
+        assert req.url.path.endswith("/fw48h")
+        assert "auth-token" not in req.headers
+        return httpx.Response(200, json={"data": rows})
+    provider = FallbackProvider(settings, UKCarbonProvider(settings, httpx.MockTransport(handler)))
+    zone = "DE" if invalid == "zone" else "GB"
+    curve = provider.curve(zone, NOW, NOW+timedelta(hours=24))
+    assert curve.source == ("SIMULATED" if invalid else "LIVE")
+    assert all(p.source == curve.source for p in curve.points)
+    assert provider.curve(zone, NOW, NOW+timedelta(hours=24)) == curve
+    if not invalid: assert len(calls) == 1
+
+
+def test_recording_preserves_real_values_and_dates(tmp_path):
+    import json
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from app.providers.additional import RecordedProvider
+    path = Path("app/providers/recordings/gb-recorded.json")
+    data = json.loads(path.read_text())
+    raw = json.loads(Path("app/providers/recordings/gb-response.json").read_text())
+    assert [p["intensity"] for p in data["points"]] == [r["intensity"]["actual"] for r in raw["data"]]
+    start = datetime(2025, 1, 15, tzinfo=timezone.utc)
+    provider = RecordedProvider(str(path))
+    assert provider.curve("GB", start, start+timedelta(hours=24)).source == "REAL (RECORDED)"
+    with pytest.raises(ValueError): provider.curve("GB", NOW, NOW+timedelta(hours=24))
+    data["sample"] = True
+    sample = tmp_path / "sample.json"
+    sample.write_text(json.dumps(data))
+    with pytest.raises(ValueError): RecordedProvider(str(sample)).curve("GB", start, start+timedelta(hours=24))

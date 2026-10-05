@@ -12,11 +12,11 @@ NAMES = ["Warehouse refresh", "Feature store sync", "Demand forecast training", 
          "Orders · extract", "Orders · transform", "Orders · publish", "Archive compression", "Urgent oversized backfill"]
 
 
-def seed_jobs(now: datetime = DEMO_START, prefix: str = "demo", day: int = 0) -> list[Job]:
+def seed_jobs(now: datetime = DEMO_START, prefix: str = "demo", day: int = 0, zone_override: str | None = None) -> list[Job]:
     jobs = []
     zones = ["DE", "US-CAL-CISO", "IN-WE"]
     for i, name in enumerate(NAMES):
-        zone = "DE" if 20 <= i <= 22 else zones[i % 3]
+        zone = zone_override or ("DE" if 20 <= i <= 22 else zones[i % 3])
         local = now.astimezone(local_zone(zone)).replace(hour=6 + i % 3, minute=0, second=0, microsecond=0)
         if local < now:
             local += timedelta(days=1)

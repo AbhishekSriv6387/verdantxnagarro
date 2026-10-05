@@ -29,8 +29,8 @@ def main() -> None:
         assert first_report["avoided_g"] > 0
         get("/api/jobs/demo-01/curve")
         proposals = get("/api/approvals").json()
-        post(f"/api/approvals/{proposals[0]['id']}", {"action": "approve", "comment": "Smoke test: reviewed SLA and business window"})
-        post(f"/api/approvals/{proposals[1]['id']}", {"action": "reject", "comment": "Smoke test: owner retains control"})
+        post(f"/api/approvals/{proposals[0]['id']}", {"action": "approve", "approver_name": "Test reviewer", "comment": "Smoke test: reviewed SLA and business window"})
+        post(f"/api/approvals/{proposals[1]['id']}", {"action": "reject", "approver_name": "Test reviewer", "comment": "Smoke test: owner retains control"})
         get("/api/logs?actor=human")
         for fmt in ("csv", "json"):
             get(f"/api/report/export?format={fmt}")

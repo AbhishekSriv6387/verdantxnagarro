@@ -31,7 +31,18 @@ def test_app_health_offline_assets_and_validation(client):
 def test_chart_uses_frozen_decision_curve(client):
     run(client)
     job = client.get("/api/jobs").json()[0]
-    assert client.get(f"/api/jobs/{job['id']}/curve").json() == job["decision"]["curve_snapshot"]
+    frozen = client.get(f"/api/jobs/{job['id']}/curve").json()
+    service = client.app.state.service
+    from app.providers.carbon import SyntheticProvider
+    entry = next(e for e in client.get("/api/logs").json() if e["job_id"] == job["id"])
+    old = client.get(f"/api/logs/{entry['id']}/evidence").json()
+    service.provider = SyntheticProvider(999)
+    assert service.curve_for(service._job(job["id"])).model_dump(mode="json") != frozen
+    assert client.get(f"/api/jobs/{job['id']}/curve").json() == frozen
+    assert client.get(f"/api/logs/{entry['id']}/evidence").json() == old
+    assert "curve_snapshot" not in job["decision"]
+    assert len(job["decision"]["candidate_window_summary"]["candidates"]) <= 4
+    assert service.store.db.execute("SELECT COUNT(*) FROM curves").fetchone()[0] < 25
 
 
 def test_cycle_idempotent_complete_log_and_protected_queue(client):
@@ -59,24 +70,24 @@ def test_approval_rejection_comments_and_duplicate_review(client):
     proposals = client.get("/api/approvals").json()
     first, second = proposals[:2]
     before = client.get("/api/report").json()["avoided_g"]
-    response = client.post(f"/api/approvals/{first['id']}", json={"action": "approve", "comment": "SLA and business window reviewed"})
+    response = client.post(f"/api/approvals/{first['id']}", json={"action": "approve", "approver_name": "Test reviewer", "comment": "SLA and business window reviewed"})
     assert response.status_code == 200
     assert response.json()["scheduled_start"] == first["proposal_start"]
     assert response.json()["status"] == "approved"
     assert client.get("/api/report").json()["avoided_g"] == pytest.approx(before + first["decision"]["avoided_g"])
-    assert client.post(f"/api/approvals/{first['id']}", json={"action": "approve", "comment": "again"}).status_code == 409
-    response = client.post(f"/api/approvals/{second['id']}", json={"action": "reject", "comment": "Business window must remain with owner"})
+    assert client.post(f"/api/approvals/{first['id']}", json={"action": "approve", "approver_name": "Test reviewer", "comment": "again"}).status_code == 409
+    response = client.post(f"/api/approvals/{second['id']}", json={"action": "reject", "approver_name": "Test reviewer", "comment": "Business window must remain with owner"})
     assert response.json()["status"] == "rejected"
     assert response.json()["scheduled_start"] is None
     assert len(client.get("/api/logs?actor=human").json()) == 2
-    assert client.post(f"/api/approvals/{second['id']}", json={"action": "approve", "comment": " "}).status_code == 422
+    assert client.post(f"/api/approvals/{second['id']}", json={"action": "approve", "approver_name": "Test reviewer", "comment": " "}).status_code == 422
 
 
 def test_expired_approval_is_not_applied(client):
     run(client)
     job = client.get("/api/approvals").json()[0]
     assert client.post("/api/clock/advance", json={"minutes": 2880}).status_code == 200
-    response = client.post(f"/api/approvals/{job['id']}", json={"action": "approve", "comment": "Too late"})
+    response = client.post(f"/api/approvals/{job['id']}", json={"action": "approve", "approver_name": "Test reviewer", "comment": "Too late"})
     assert response.status_code == 409
     assert "expired" in response.json()["detail"]
 
@@ -84,7 +95,7 @@ def test_expired_approval_is_not_applied(client):
 def test_dependency_chain_unlocks_only_after_review(client):
     run(client)
     parent = next(j for j in client.get("/api/approvals").json() if j["id"] == "demo-21")
-    assert client.post(f"/api/approvals/{parent['id']}", json={"action": "approve", "comment": "Parent window approved"}).status_code == 200
+    assert client.post(f"/api/approvals/{parent['id']}", json={"action": "approve", "approver_name": "Test reviewer", "comment": "Parent window approved"}).status_code == 200
     assert run(client)["processed"] >= 1
     jobs = {j["id"]: j for j in client.get("/api/jobs").json()}
     assert jobs["demo-22"]["status"] == "needs_approval"
@@ -183,3 +194,39 @@ def test_simulated_completion_and_persistence(tmp_path, settings):
     assert SchedulerService(settings, reopened).report()["avoided_g"] == before
     assert any(j.status == "completed" for j in reopened.jobs())
     reopened.db.close()
+
+
+def test_token_reset_clock_and_relative_seed(settings):
+    from dataclasses import replace
+    from datetime import datetime, timezone
+    from app.engine.scheduler import ceil_slot
+    store = Store(":memory:")
+    before = ceil_slot(datetime.now(timezone.utc))
+    service = SchedulerService(replace(settings, electricity_token="fixture"), store)
+    assert before <= service.now <= ceil_slot(datetime.now(timezone.utc))
+    assert all(j.earliest_start >= service.now for j in store.jobs())
+    store.db.close()
+
+
+def test_frozen_storage_triggers_and_evidence_after_reset(client):
+    run(client)
+    store = client.app.state.service.store
+    entry = client.get("/api/logs").json()[0]
+    evidence = client.get(f"/api/logs/{entry['id']}/evidence").json()
+    for command in ("UPDATE curves SET payload='{}'", "DELETE FROM curves"):
+        with pytest.raises(sqlite3.IntegrityError):
+            store.db.execute(command)
+        store.db.rollback()
+    client.post("/api/demo/reset")
+    assert client.get(f"/api/logs/{entry['id']}/evidence").json() == evidence
+
+
+def test_recorded_demo_uses_only_original_recorded_dates(settings):
+    from dataclasses import replace
+    store = Store(":memory:")
+    service = SchedulerService(replace(settings, carbon_provider="recorded"), store)
+    service.cycle()
+    assert service.now.year == 2025
+    assert service.report()["source"] == "REAL (RECORDED)"
+    assert all(j.zone == "GB" for j in store.jobs())
+    store.db.close()

@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
-ZONES = {"DE": "Europe/Berlin", "US-CAL-CISO": "America/Los_Angeles", "IN-WE": "Asia/Kolkata"}
+ZONES = {"DE": "Europe/Berlin", "US-CAL-CISO": "America/Los_Angeles", "IN-WE": "Asia/Kolkata", "GB": "Europe/London"}
 
 
 def local_zone(zone: str) -> ZoneInfo:
@@ -21,6 +21,8 @@ class Settings:
     safety_min: int = 15
     seed: int = 42
     electricity_token: str = ""
+    carbon_provider: str = "auto"
+    recorded_path: str = "app/providers/recordings/gb-recorded.json"
     timeout: float = 3.0
     retries: int = 1
     cache_seconds: int = 300
@@ -29,6 +31,8 @@ class Settings:
     openai_model: str = "gpt-4.1-mini"
 
     def __post_init__(self) -> None:
+        if self.carbon_provider not in ("auto", "synthetic", "electricity_maps", "uk", "recorded"):
+            raise ValueError("Unknown CARBON_PROVIDER")
         finite = all(math.isfinite(v) for v in (self.pue, self.embodied_g, self.threshold_pct, self.threshold_g, self.timeout))
         if not (finite and 1 <= self.pue <= 5 and self.embodied_g >= 0 and 0 <= self.threshold_pct <= 100
                 and self.threshold_g >= 0 and 0 <= self.safety_min <= 240
@@ -43,6 +47,8 @@ class Settings:
                    threshold_g=float(os.getenv("SAVINGS_THRESHOLD_G", "5")),
                    safety_min=int(os.getenv("SAFETY_BUFFER_MIN", "15")), seed=int(os.getenv("SYNTHETIC_SEED", "42")),
                    electricity_token=os.getenv("ELECTRICITY_MAPS_TOKEN", ""),
+                   carbon_provider=os.getenv("CARBON_PROVIDER", "auto"),
+                   recorded_path=os.getenv("RECORDED_CARBON_PATH", "app/providers/recordings/gb-recorded.json"),
                    timeout=float(os.getenv("PROVIDER_TIMEOUT_SECONDS", "3")),
                    retries=int(os.getenv("PROVIDER_RETRIES", "1")), cache_seconds=int(os.getenv("PROVIDER_CACHE_SECONDS", "300")),
                    enable_llm=os.getenv("ENABLE_LLM_EXPLANATIONS", "false").lower() == "true",

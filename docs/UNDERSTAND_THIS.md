@@ -14,7 +14,7 @@ Use “modeled” until you have actual production measurements. This prototype 
 
 ## The experience, from start to finish
 
-Open the dashboard. It contains a fixed demo clock and 25 sample jobs. Every job has a duration, estimated power, location, earliest start, deadline and criticality. Three jobs form an extract → transform → publish chain. One backfill is deliberately too large for its deadline.
+Open the dashboard. By default it contains the fixed demo clock and 25 sample jobs. With an Electricity Maps token, reset rounds current UTC up to the next half-hour and seeds jobs relative to it. Explicit recorded mode uses the historical archive date. Every job has a duration, estimated power, location, earliest start, deadline and criticality. Three jobs form an extract → transform → publish chain. One backfill is deliberately too large for its deadline.
 
 When you press **Run agent cycle**, the app gathers intensity data, evaluates pending jobs and saves its decisions. A flexible, independent job can move automatically. A business-critical job can receive a proposal, but no changed schedule appears until a person approves it. A dependent job waits until its prerequisite has an applied schedule, then gets its own review.
 
@@ -34,7 +34,7 @@ An LLM is not required for the scheduler to be agentic. The optional OpenAI laye
 
 Pydantic defines the allowed job fields. It rejects missing timezone offsets, negative power, excessive runtimes, unsupported zones, duplicate dependencies and an invalid window. The API creates the job ID, baseline and status. Callers cannot create a job that is already “approved.”
 
-The three zones use IANA timezones. Their baseline is 14:00 on the local date of earliest start, stored internally as UTC. The UI's add-job form takes explicit UTC timestamps to avoid browser-local ambiguity; the table and chart then show each job's local time.
+The four supported zones (including GB) use IANA timezones. Their baseline is 14:00 on the local date of earliest start, stored internally as UTC. The UI's add-job form takes explicit UTC timestamps to avoid browser-local ambiguity; the table and chart then show each job's local time.
 
 ### `config.py`: the knobs
 
@@ -60,15 +60,15 @@ If both savings thresholds pass, and the job is independent and flexible, it can
 
 ### `service.py`: the only place that changes schedules
 
-The service coordinates the pure decision and its database update. It applies both inside one transaction so you cannot get a changed schedule with a missing log. Duplicate cycles skip already-applied jobs and proposals. A fingerprint prevents repeated identical blocked-job decisions at the same clock/dependency state.
+The service coordinates the pure decision and its database update. Optional LLM prose is requested only after commit, outside the lock, and appended against the original decision ID; deterministic evidence commits with the schedule. It applies both inside one transaction so you cannot get a changed schedule with a missing log. Duplicate cycles skip already-applied jobs and proposals. A fingerprint prevents repeated identical blocked-job decisions at the same clock/dependency state.
 
-Approval reads the stored proposal and rechecks feasibility against the current clock and prerequisites. A person cannot approve yesterday's window. Human comments are mandatory and become part of the audit record.
+Approval reads the stored proposal and rechecks feasibility against the current clock and prerequisites. A person cannot approve yesterday's window. Human comments and self-reported approver names are mandatory and become part of the audit record. There is no authentication.
 
 The service also handles seeding, time advancement, reports and isolated replay. The replay uses the same decision engine but fresh seven-day synthetic workloads. It never invents human approvals, changes the active clock, or adds replay savings to the active daily total.
 
 ### `store/sqlite.py`: the memory
 
-SQLite stores jobs, demo state and decisions. Jobs and state may change. Decision records can only be inserted: database triggers block UPDATE and DELETE. Reset starts a new run ID and queue while retaining old decision records, accessible with “Include past demo runs.” A write lock and transaction protect concurrent cycles in the supported single-process deployment.
+SQLite stores jobs, demo state, decisions, content-addressed frozen curves and separately appended optional explanations. Jobs and state may change. Decision records can only be inserted: database triggers block UPDATE and DELETE. Reset starts a new run ID and queue while retaining old decision records, accessible with “Include past demo runs.” A write lock and transaction protect concurrent cycles in the supported single-process deployment.
 
 This is durable and useful for a demo, but a database administrator can still alter files or drop triggers. Do not describe it as a cryptographically tamper-proof enterprise ledger.
 
@@ -190,3 +190,14 @@ Production accounting should preserve baseline policy before making changes, dis
 ## Reading references
 
 The [SCI specification](https://sci.greensoftware.foundation/) defines the calculation framework. [Electricity Maps forecast documentation](https://app.electricitymaps.com/docs/reference/carbon-intensity/forecast) defines the provider's API shape. The [OpenAI text guide](https://developers.openai.com/api/docs/guides/text) supports the optional narration adapter. The three event screenshots supplied by the user are the source for the hackathon theme, weights and pilot emphasis.
+
+
+## Additions from the October 2026 improvement session
+
+- Curves are stored once by SHA-256 content hash. New decisions retain best three plus chosen candidates, the full candidate count, thresholds and all actually used intensity intervals. The evidence endpoint resolves original frozen data; a provider refresh cannot rewrite it. Existing audit rows and all append-only triggers remain intact.
+- The UK Carbon Intensity adapter supplies no-key GB half-hour forecasts for 48 hours, using the same complete-coverage-or-whole-fallback policy. In no-token mode the fixed clock can request dates unavailable from a live API; the source then honestly says SIMULATED. Recorded mode uses bundled actual grid estimates from the public API for 15-16 January 2025, at original dates, labeled REAL (RECORDED). They are neither measured job emissions nor live forecasts. README documents selection, format and source URL.
+- The workload generator replaces the active queue with up to 500 seeded jobs, retaining audit history. Every generated workload is SIMULATED WORKLOAD independently of carbon provenance. The distributions are illustrative, not customer-validated. A 500-job offline local cycle was measured at 2.215 seconds; network and optional LLM latency are separate limitations.
+- Flexibility sensitivity is a read-only, hypothetical analysis of +/-1, 2, 4 and 8-hour start windows around the original fixed baseline. It clips windows to all original constraints and excludes protected, linked, rejected or baseline-infeasible jobs. It uses frozen evidence for evaluated jobs and preserves both thresholds. Its chart never changes applied-savings totals.
+- Project and team fields default to `default`. Dashboard/report filters and project rollups make workload attribution visible, but do not isolate tenants or alter cross-project dependency guards. Reviewer names are required self-reported audit text; there is still no authentication.
+
+See [BUILD_LOG.md](BUILD_LOG.md) for session changes and actual verification. Default demo figures in this guide remain the fixed synthetic scenario only; do not apply them to live, recorded, scaled or filtered workloads.

@@ -1,0 +1,690 @@
+{
+  "format_version": 1,
+  "zone": "GB",
+  "source": "REAL (RECORDED)",
+  "provider": "UK Carbon Intensity API / NESO",
+  "source_url": "https://api.carbonintensity.org.uk/intensity/2025-01-15T00:00Z/fw48h",
+  "retrieved_at": "2026-10-04T08:47:02.784491+00:00",
+  "notes": "Unshifted historical API intensity.actual estimates. These are grid intensity estimates, not measured job emissions. Raw API response retained in gb-response.json.",
+  "points": [
+    {
+      "start": "2025-01-14T23:30Z",
+      "end": "2025-01-15T00:00Z",
+      "intensity": 197,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T00:00Z",
+      "end": "2025-01-15T00:30Z",
+      "intensity": 197,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T00:30Z",
+      "end": "2025-01-15T01:00Z",
+      "intensity": 198,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T01:00Z",
+      "end": "2025-01-15T01:30Z",
+      "intensity": 198,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T01:30Z",
+      "end": "2025-01-15T02:00Z",
+      "intensity": 197,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T02:00Z",
+      "end": "2025-01-15T02:30Z",
+      "intensity": 194,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T02:30Z",
+      "end": "2025-01-15T03:00Z",
+      "intensity": 190,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T03:00Z",
+      "end": "2025-01-15T03:30Z",
+      "intensity": 189,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T03:30Z",
+      "end": "2025-01-15T04:00Z",
+      "intensity": 195,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T04:00Z",
+      "end": "2025-01-15T04:30Z",
+      "intensity": 199,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T04:30Z",
+      "end": "2025-01-15T05:00Z",
+      "intensity": 204,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T05:00Z",
+      "end": "2025-01-15T05:30Z",
+      "intensity": 212,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T05:30Z",
+      "end": "2025-01-15T06:00Z",
+      "intensity": 228,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T06:00Z",
+      "end": "2025-01-15T06:30Z",
+      "intensity": 239,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T06:30Z",
+      "end": "2025-01-15T07:00Z",
+      "intensity": 247,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T07:00Z",
+      "end": "2025-01-15T07:30Z",
+      "intensity": 248,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T07:30Z",
+      "end": "2025-01-15T08:00Z",
+      "intensity": 247,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T08:00Z",
+      "end": "2025-01-15T08:30Z",
+      "intensity": 249,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T08:30Z",
+      "end": "2025-01-15T09:00Z",
+      "intensity": 241,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T09:00Z",
+      "end": "2025-01-15T09:30Z",
+      "intensity": 239,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T09:30Z",
+      "end": "2025-01-15T10:00Z",
+      "intensity": 240,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T10:00Z",
+      "end": "2025-01-15T10:30Z",
+      "intensity": 235,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T10:30Z",
+      "end": "2025-01-15T11:00Z",
+      "intensity": 231,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T11:00Z",
+      "end": "2025-01-15T11:30Z",
+      "intensity": 228,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T11:30Z",
+      "end": "2025-01-15T12:00Z",
+      "intensity": 227,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T12:00Z",
+      "end": "2025-01-15T12:30Z",
+      "intensity": 225,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T12:30Z",
+      "end": "2025-01-15T13:00Z",
+      "intensity": 221,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T13:00Z",
+      "end": "2025-01-15T13:30Z",
+      "intensity": 220,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T13:30Z",
+      "end": "2025-01-15T14:00Z",
+      "intensity": 217,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T14:00Z",
+      "end": "2025-01-15T14:30Z",
+      "intensity": 218,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T14:30Z",
+      "end": "2025-01-15T15:00Z",
+      "intensity": 220,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T15:00Z",
+      "end": "2025-01-15T15:30Z",
+      "intensity": 225,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T15:30Z",
+      "end": "2025-01-15T16:00Z",
+      "intensity": 230,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T16:00Z",
+      "end": "2025-01-15T16:30Z",
+      "intensity": 228,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T16:30Z",
+      "end": "2025-01-15T17:00Z",
+      "intensity": 236,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T17:00Z",
+      "end": "2025-01-15T17:30Z",
+      "intensity": 237,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T17:30Z",
+      "end": "2025-01-15T18:00Z",
+      "intensity": 233,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T18:00Z",
+      "end": "2025-01-15T18:30Z",
+      "intensity": 232,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T18:30Z",
+      "end": "2025-01-15T19:00Z",
+      "intensity": 233,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T19:00Z",
+      "end": "2025-01-15T19:30Z",
+      "intensity": 235,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T19:30Z",
+      "end": "2025-01-15T20:00Z",
+      "intensity": 233,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T20:00Z",
+      "end": "2025-01-15T20:30Z",
+      "intensity": 238,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T20:30Z",
+      "end": "2025-01-15T21:00Z",
+      "intensity": 242,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T21:00Z",
+      "end": "2025-01-15T21:30Z",
+      "intensity": 235,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T21:30Z",
+      "end": "2025-01-15T22:00Z",
+      "intensity": 230,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T22:00Z",
+      "end": "2025-01-15T22:30Z",
+      "intensity": 224,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T22:30Z",
+      "end": "2025-01-15T23:00Z",
+      "intensity": 216,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T23:00Z",
+      "end": "2025-01-15T23:30Z",
+      "intensity": 212,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-15T23:30Z",
+      "end": "2025-01-16T00:00Z",
+      "intensity": 205,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T00:00Z",
+      "end": "2025-01-16T00:30Z",
+      "intensity": 204,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T00:30Z",
+      "end": "2025-01-16T01:00Z",
+      "intensity": 204,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T01:00Z",
+      "end": "2025-01-16T01:30Z",
+      "intensity": 199,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T01:30Z",
+      "end": "2025-01-16T02:00Z",
+      "intensity": 198,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T02:00Z",
+      "end": "2025-01-16T02:30Z",
+      "intensity": 200,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T02:30Z",
+      "end": "2025-01-16T03:00Z",
+      "intensity": 203,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T03:00Z",
+      "end": "2025-01-16T03:30Z",
+      "intensity": 200,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T03:30Z",
+      "end": "2025-01-16T04:00Z",
+      "intensity": 198,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T04:00Z",
+      "end": "2025-01-16T04:30Z",
+      "intensity": 199,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T04:30Z",
+      "end": "2025-01-16T05:00Z",
+      "intensity": 206,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T05:00Z",
+      "end": "2025-01-16T05:30Z",
+      "intensity": 210,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T05:30Z",
+      "end": "2025-01-16T06:00Z",
+      "intensity": 226,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T06:00Z",
+      "end": "2025-01-16T06:30Z",
+      "intensity": 236,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T06:30Z",
+      "end": "2025-01-16T07:00Z",
+      "intensity": 239,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T07:00Z",
+      "end": "2025-01-16T07:30Z",
+      "intensity": 239,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T07:30Z",
+      "end": "2025-01-16T08:00Z",
+      "intensity": 240,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T08:00Z",
+      "end": "2025-01-16T08:30Z",
+      "intensity": 239,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T08:30Z",
+      "end": "2025-01-16T09:00Z",
+      "intensity": 232,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T09:00Z",
+      "end": "2025-01-16T09:30Z",
+      "intensity": 227,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T09:30Z",
+      "end": "2025-01-16T10:00Z",
+      "intensity": 224,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T10:00Z",
+      "end": "2025-01-16T10:30Z",
+      "intensity": 219,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T10:30Z",
+      "end": "2025-01-16T11:00Z",
+      "intensity": 218,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T11:00Z",
+      "end": "2025-01-16T11:30Z",
+      "intensity": 217,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T11:30Z",
+      "end": "2025-01-16T12:00Z",
+      "intensity": 217,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T12:00Z",
+      "end": "2025-01-16T12:30Z",
+      "intensity": 214,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T12:30Z",
+      "end": "2025-01-16T13:00Z",
+      "intensity": 212,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T13:00Z",
+      "end": "2025-01-16T13:30Z",
+      "intensity": 216,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T13:30Z",
+      "end": "2025-01-16T14:00Z",
+      "intensity": 222,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T14:00Z",
+      "end": "2025-01-16T14:30Z",
+      "intensity": 224,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T14:30Z",
+      "end": "2025-01-16T15:00Z",
+      "intensity": 227,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T15:00Z",
+      "end": "2025-01-16T15:30Z",
+      "intensity": 230,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T15:30Z",
+      "end": "2025-01-16T16:00Z",
+      "intensity": 227,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T16:00Z",
+      "end": "2025-01-16T16:30Z",
+      "intensity": 226,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T16:30Z",
+      "end": "2025-01-16T17:00Z",
+      "intensity": 223,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T17:00Z",
+      "end": "2025-01-16T17:30Z",
+      "intensity": 221,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T17:30Z",
+      "end": "2025-01-16T18:00Z",
+      "intensity": 221,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T18:00Z",
+      "end": "2025-01-16T18:30Z",
+      "intensity": 220,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T18:30Z",
+      "end": "2025-01-16T19:00Z",
+      "intensity": 216,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T19:00Z",
+      "end": "2025-01-16T19:30Z",
+      "intensity": 210,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T19:30Z",
+      "end": "2025-01-16T20:00Z",
+      "intensity": 206,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T20:00Z",
+      "end": "2025-01-16T20:30Z",
+      "intensity": 205,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T20:30Z",
+      "end": "2025-01-16T21:00Z",
+      "intensity": 197,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T21:00Z",
+      "end": "2025-01-16T21:30Z",
+      "intensity": 184,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T21:30Z",
+      "end": "2025-01-16T22:00Z",
+      "intensity": 176,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T22:00Z",
+      "end": "2025-01-16T22:30Z",
+      "intensity": 167,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T22:30Z",
+      "end": "2025-01-16T23:00Z",
+      "intensity": 164,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T23:00Z",
+      "end": "2025-01-16T23:30Z",
+      "intensity": 160,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    },
+    {
+      "start": "2025-01-16T23:30Z",
+      "end": "2025-01-17T00:00Z",
+      "intensity": 167,
+      "kind": "recorded_actual",
+      "source": "REAL (RECORDED)"
+    }
+  ]
+}
