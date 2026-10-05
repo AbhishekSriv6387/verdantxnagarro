@@ -7,3 +7,15 @@
 @media(max-width:600px){main{padding:20px 14px}.topbar{height:59px;padding:0 15px}.topbar>div:first-child{display:none}.topbar-right{width:100%;justify-content:center}.hero{display:block}.hero h1{font-size:33px}.hero-actions{align-items:flex-start;padding-top:24px;gap:12px}.hero-caption{display:none}.hero-actions .primary{width:100%;font-size:12px}.notice p{font-size:9px}.notice{padding:10px;gap:8px}.kpis{gap:9px}.kpi{padding:14px 10px;min-height:160px}.kpi-label{font-size:9px}.kpi-label>span{display:none}.kpi-value{font-size:27px}.kpi p{font-size:8px}.panel-heading{padding:18px 14px}.chart-legend{padding:0 14px;gap:9px;font-size:7px}.chart{height:220px;padding:5px}.chart-footer{padding:8px 14px 16px;font-size:7px}.chart-footer span:last-child{display:none}.toolbar{padding:8px 14px 15px;flex-wrap:wrap}.toolbar input[type=search]{width:100%}.toolbar select{flex:1;min-width:95px}h2{font-size:16px}.table-footer{padding:14px;display:block;line-height:2}.approval-grid{grid-template-columns:1fr}.section-heading .badge{display:none}.log-entry summary{padding:14px;gap:9px;flex-wrap:wrap}.log-time{min-width:95px;font-size:8px}.log-name{font-size:9px;min-width:90px}.log-actor{display:none}.log-body{padding:0 14px 14px}.history-label{margin-left:0}.demo-controls{padding:17px}.demo-controls>div:last-child{flex-wrap:wrap}.demo-controls button{font-size:10px;padding:10px}footer{flex-wrap:wrap;line-height:1.6}footer span:last-child{display:none}.form-grid{gap:12px}.form-grid label{font-size:10px}dialog{padding:20px}#toast{left:50%}.section-eyebrow{font-size:7px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 
+
+.analysis-content { padding: 0 24px 24px; color: #a8bdb2; }
+.analysis-content svg { width: 100%; max-width: 750px; }
+#scale-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+#scale-count { width: 100px; }
+
+.sensitivity-chart { overflow-x: auto; }
+.sensitivity-chart svg { min-width: 480px; }
+@media (max-width: 600px) {
+  .panel-heading { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .analysis-content { padding: 0 16px 20px; }
+}

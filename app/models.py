@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.config import ZONES, local_zone
 
-Source = Literal["LIVE", "SIMULATED"]
+Source = Literal["LIVE", "SIMULATED", "REAL (RECORDED)"]
 Status = Literal["pending", "scheduled", "needs_approval", "approved", "rejected", "completed"]
 Outcome = Literal["AUTO_RESCHEDULED", "KEEP_NOW", "NEEDS_APPROVAL", "NO_FEASIBLE_WINDOW", "APPROVED", "REJECTED", "COMPLETED"]
 
@@ -15,6 +15,8 @@ class JobInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     type: Literal["etl", "ml_training", "report"] = "etl"
     owner: str = Field(min_length=1, max_length=100)
+    project: str = Field(default="default", min_length=1, max_length=100)
+    team: str = Field(default="default", min_length=1, max_length=100)
     zone: str = "DE"
     est_duration_min: int = Field(ge=1, le=720)
     power_kw: float = Field(gt=0, le=10000)
@@ -23,7 +25,7 @@ class JobInput(BaseModel):
     criticality: Literal["flexible", "hard_deadline", "business_critical"] = "flexible"
     depends_on: list[str] = Field(default_factory=list, max_length=20)
 
-    @field_validator("name", "owner")
+    @field_validator("name", "owner", "project", "team")
     @classmethod
     def nonblank(cls, value: str) -> str:
         if not value.strip():
@@ -55,6 +57,7 @@ class JobInput(BaseModel):
 
 class Job(JobInput):
     id: str
+    workload_source: str = "SIMULATED WORKLOAD"
     status: Status = "pending"
     baseline_start: datetime
     scheduled_start: datetime | None = None
@@ -75,9 +78,10 @@ def baseline_for(job: JobInput) -> datetime:
 class ApprovalInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: Literal["approve", "reject"]
+    approver_name: str = Field(min_length=1, max_length=100)
     comment: str = Field(min_length=1, max_length=1000)
 
-    @field_validator("comment")
+    @field_validator("comment", "approver_name")
     @classmethod
     def nonblank(cls, value: str) -> str:
         if not value.strip():
@@ -87,3 +91,8 @@ class ApprovalInput(BaseModel):
 
 class AdvanceInput(BaseModel):
     minutes: int = Field(default=60, ge=1, le=10080)
+
+
+class ScaleInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    n: int = Field(default=25, ge=1, le=500)

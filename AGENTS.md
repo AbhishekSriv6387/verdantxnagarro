@@ -25,12 +25,21 @@ This is Verdant, a local carbon-aware batch scheduling demo. Read README.md and 
 1. Never auto-move a non-flexible job, a job with prerequisites, or a job with dependents. Human approval cannot bypass temporal or dependency feasibility.
 2. Never apply a start before the simulated clock/earliest start or a run that violates the SLA plus buffer. Revalidate when approving.
 3. Both absolute and percentage savings thresholds must pass for ordinary automatic movement.
-4. Preserve per-figure LIVE/SIMULATED provenance and all used intensity intervals. Incomplete live coverage must fall back as a whole; do not label synthetic extrapolation LIVE.
+4. Preserve per-figure LIVE / REAL (RECORDED) / SIMULATED carbon provenance and separate SIMULATED WORKLOAD labels and all used intensity intervals. Incomplete live coverage must fall back as a whole; do not label synthetic extrapolation LIVE.
 5. Only applied schedules contribute savings. Pending, rejected, blocked and infeasible jobs are excluded. Never claim simulated savings as observed real-world impact.
-6. Decision history is append-only, including across demo resets. Record actor, timestamps, rule IDs, thresholds, candidate summary, sources, values and explanation atomically with schedule changes.
+6. Decision history is append-only, including across demo resets. Record actor, self-reported reviewer name, project/team, timestamps, rule IDs, thresholds, candidate summary, sources, values and deterministic explanation atomically with schedule changes. Optional LLM prose is appended separately after commit and must not hold the scheduling transaction.
 7. Cycles must be idempotent. Explain any intentional change to reevaluation semantics and test duplicate/concurrent execution.
 8. LLM output is optional prose only. It cannot change criticality, slots, emissions, approval state or rules. Keep deterministic fallback and detached input.
 9. Weekly replay must remain isolated, seeded and reproducible. Do not fake human approvals or accumulate repeated replay totals.
+
+## Storage, providers and analysis
+
+- New decisions reference immutable SHA-256-addressed curves; retain best three plus chosen candidates and every actually used intensity interval. Resolve frozen evidence on demand. Never UPDATE old decision rows to migrate them.
+- Token-enabled reset rounds real UTC up to 30 minutes; no-token default remains DEMO_START. Explicit recorded replay uses original historical dates. Do not time-shift or extrapolate recorded values. Sample-marked files cannot be REAL (RECORDED).
+- UK provider supports GB, half-hour intervals, 48-hour forecast, no key; full coverage remains mandatory. Default operation and tests remain offline.
+- Scale workloads are seeded and labeled SIMULATED WORKLOAD. Preserve audit history when replacing a queue. Keep the 500-job offline cycle performance regression under five seconds; do not change rules to meet it.
+- Flexibility analysis is read-only and hypothetical; original baseline and constraints remain authoritative. Never add sensitivity savings to applied totals or invent approvals.
+- Project filters never restrict the graph used for scheduling. Approver names are self-reported, not authenticated identities. Maintain project/team defaults for legacy jobs.
 
 ## Verification and communication
 

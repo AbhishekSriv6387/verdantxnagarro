@@ -7,12 +7,14 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from app.config import Settings
+from app.engine.sensitivity import sensitivity
 from app.engine.explanations import Explainer, OpenAIExplainer
-from app.engine.scheduler import decide, is_feasible
+from app.engine.scheduler import JobGraph, ceil_slot, decide, has_dependents, is_feasible
 from app.models import Job, JobInput, baseline_for
 from app.providers.carbon import CarbonProvider, Curve, FallbackProvider, SyntheticProvider
 from app.seed import DEMO_START, seed_jobs
 from app.store.sqlite import Store
+from app.workload import generate_jobs
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +38,31 @@ class SchedulerService:
         return datetime.fromisoformat(self.store.get("clock"))
 
     def reset(self) -> dict:
+        clock = ceil_slot(datetime.now(timezone.utc)) if self.settings.electricity_token else DEMO_START
+        # Recorded replay is explicitly historical and never time-shifts grid values.
+        if self.settings.carbon_provider == "recorded":
+            clock = datetime(2025, 1, 15, tzinfo=timezone.utc)
+        zone = "GB" if self.settings.carbon_provider in ("uk", "recorded") else None
         with self.store.transaction():
             self.store.db.execute("DELETE FROM jobs")
-            self.store.set("clock", DEMO_START.isoformat())
+            self.store.set("clock", clock.isoformat())
             self.store.set("run_id", str(uuid4()))
             self.store.set("replay", None)
-            for job in seed_jobs():
+            for job in seed_jobs(clock, zone_override=zone):
                 self.store.save(job)
-        return {"clock": DEMO_START.isoformat(), "jobs": 25, "audit_history_preserved": True}
+        return {"clock": clock.isoformat(), "jobs": 25, "audit_history_preserved": True}
+
+    def scale(self, n: int = 25) -> dict:
+        with self.store.transaction():
+            zone = "GB" if self.settings.carbon_provider in ("uk", "recorded") else None
+            jobs = generate_jobs(self.now, n, self.settings.seed, zone)
+            self.store.db.execute("DELETE FROM jobs")
+            self.store.set("run_id", str(uuid4()))
+            self.store.set("replay", None)
+            for job in jobs:
+                self.store.save(job)
+        return {"jobs": n, "seed": self.settings.seed, "workload_source": "SIMULATED WORKLOAD",
+                "audit_history_preserved": True}
 
     def _job(self, job_id: str) -> Job:
         job = next((j for j in self.store.jobs() if j.id == job_id), None)
@@ -56,52 +75,65 @@ class SchedulerService:
         end = max(job.sla_deadline, job.baseline_start + job.duration)
         return self.provider.curve(job.zone, start, end)
 
-    def _log(self, job: Job, decision: dict, actor: str, comment: str | None = None) -> None:
+    def _log(self, job: Job, decision: dict, actor: str, comment: str | None = None, approver_name: str | None = None) -> int:
         entry = {**decision, "timestamp": self.now.isoformat(),
                  "recorded_at": datetime.now(timezone.utc).isoformat(), "run_id": self.store.get("run_id"),
-                 "job_id": job.id, "job_name": job.name, "actor": actor, "comment": comment}
-        self.store.append(entry)
+                 "job_id": job.id, "job_name": job.name, "workload_source": job.workload_source, "actor": actor, "comment": comment, "approver_name": approver_name,
+                 "project": job.project, "team": job.team}
+        decision_id = self.store.append(entry)
         logger.info("scheduling_decision", extra={"job_id": job.id, "outcome": decision["outcome"], "actor": actor})
+
+        return decision_id
 
     def cycle(self) -> dict:
         changed = []
+        narration_inputs = []
         with self.store.transaction():
-            jobs = self.store.jobs()
+            jobs = JobGraph(self.store.jobs())
+            curves = {}
             now = self.now
             for job in jobs:
                 if job.status != "pending":
                     continue
-                related = [(j.id, j.status, str(j.scheduled_start)) for j in jobs
-                           if j.id in job.depends_on or job.id in j.depends_on]
+                related = [(j.id, j.status, str(j.scheduled_start)) for j in jobs.related(job)]
                 fingerprint = hashlib.sha256(json.dumps([now.isoformat(), related]).encode()).hexdigest()
                 if job.fingerprint == fingerprint:
                     continue
-                decision = decide(job, jobs, now, self.curve_for(job), self.settings)
-                # A plug-in receives a detached copy and can only add optional prose.
-                try:
-                    narrative = self.explainer.explain(copy.deepcopy(decision))
-                except Exception:
-                    narrative = None
-                if narrative and isinstance(narrative, str):
-                    decision["llm_explanation"] = narrative[:1500]
+                key = (job.zone, min(job.earliest_start, job.baseline_start), max(job.sla_deadline, job.baseline_start + job.duration))
+                if key not in curves:
+                    curves[key] = self.curve_for(job)
+                decision = self.store.freeze(decide(job, jobs, now, curves[key], self.settings))
                 outcome = decision["outcome"]
                 chosen = datetime.fromisoformat(decision["chosen_start"]) if decision["chosen_start"] else None
                 if outcome in ("AUTO_RESCHEDULED", "KEEP_NOW"):
                     if chosen is None or not is_feasible(job, chosen, now, self.settings, jobs):
                         raise Conflict("Refusing an infeasible schedule")
                     if outcome == "AUTO_RESCHEDULED" and (job.criticality != "flexible" or job.depends_on
-                            or any(job.id in j.depends_on for j in jobs)):
+                            or has_dependents(job, jobs)):
                         raise Conflict("Protected job requires human approval")
                     job.scheduled_start, job.status = chosen, "scheduled"
                 elif outcome == "NEEDS_APPROVAL":
                     job.proposal_start, job.status = chosen, "needs_approval"
                 job.decision, job.fingerprint = decision, fingerprint
                 self.store.save(job)
-                self._log(job, decision, "agent")
+                decision_id = self._log(job, decision, "agent")
+                narration_inputs.append((decision_id, copy.deepcopy(decision)))
                 changed.append({"job_id": job.id, "outcome": outcome, "source": decision["source"]})
+        # All scheduling state and deterministic evidence have committed before external prose.
+        for decision_id, detached in narration_inputs:
+            try:
+                narrative = self.explainer.explain(detached)
+                if isinstance(narrative, str) and narrative:
+                    with self.store.transaction():
+                        self.store.append_explanation(decision_id, datetime.now(timezone.utc).isoformat(), narrative[:1500])
+            except Exception:
+                logger.info("optional_explanation_unavailable")
         return {"processed": len(changed), "decisions": changed}
 
-    def review(self, job_id: str, action: str, comment: str) -> Job:
+    def review(self, job_id: str, action: str, comment: str, approver_name: str) -> Job:
+        from app.models import ApprovalInput
+        validated = ApprovalInput(action=action, comment=comment, approver_name=approver_name)
+        comment, approver_name = validated.comment, validated.approver_name
         with self.store.transaction():
             job = self._job(job_id)
             if job.status != "needs_approval" or not job.decision or not job.proposal_start:
@@ -122,7 +154,7 @@ class SchedulerService:
                 decision["explanation"] = "Human rejected this proposal; no job is dispatched and no savings are credited."
             job.decision = decision
             self.store.save(job)
-            self._log(job, decision, "human", comment)
+            self._log(job, decision, "human", comment, approver_name)
         return job
 
     def add(self, data: JobInput) -> Job:
@@ -152,15 +184,15 @@ class SchedulerService:
         return {"clock": now.isoformat(), "completed": completed, "mode": "SIMULATED"}
 
     @staticmethod
-    def report_for(jobs: list[Job]) -> dict:
+    def report_for(jobs: list[Job], rollups: bool = True) -> dict:
         rows = []
         for job in jobs:
             d = job.decision
             if not d:
                 continue
             applied = job.status in ("scheduled", "approved", "completed") and job.scheduled_start is not None
-            rows.append({"job_id": job.id, "name": job.name, "zone": job.zone, "status": job.status,
-                         "source": d["source"], "included": applied, "energy_kwh": d["energy_kwh"],
+            rows.append({"job_id": job.id, "name": job.name, "project": job.project, "team": job.team, "zone": job.zone, "status": job.status,
+                         "source": d["source"], "workload_source": job.workload_source, "included": applied, "energy_kwh": d["energy_kwh"],
                          "embodied_g": d["embodied_g"], "functional_unit": "one job run",
                          "baseline_start": job.baseline_start.isoformat(),
                          "scheduled_start": job.scheduled_start.isoformat() if job.scheduled_start else None,
@@ -173,16 +205,28 @@ class SchedulerService:
         after = sum(r["scheduled_g"] for r in included)
         labels = sorted({r["source"] for r in rows})
         return {"source": " + ".join(labels) if labels else "SIMULATED", "sources": labels,
-                "accounting": "Modeled SCI estimates for applied schedules; not verified avoided emissions",
+                "workload_source": "SIMULATED WORKLOAD", "accounting": "Modeled SCI estimates for applied schedules; not verified avoided emissions",
                 "functional_unit": "one job run", "baseline_g": baseline, "scheduled_g": after,
                 "avoided_g": baseline - after, "reduction_pct": (baseline - after) * 100 / baseline if baseline else 0,
                 "projected_weekly_g": (baseline - after) * 7, "projection_assumption": "Repeat this applied workload once daily for seven days",
                 "included_jobs": len(included), "total_jobs": len(jobs),
-                "excluded_jobs": len(jobs) - len(included), "rows": rows}
+                "excluded_jobs": len(jobs) - len(included), "rows": rows,
+                "projects": [{"project": project, **{k: v for k, v in SchedulerService.report_for(
+                    [j for j in jobs if j.project == project], rollups=False).items()
+                    if k in ("source", "total_jobs", "included_jobs", "excluded_jobs", "baseline_g", "scheduled_g", "avoided_g", "reduction_pct")}}
+                    for project in sorted({j.project for j in jobs})] if rollups else []}
 
-    def report(self) -> dict:
+    def report(self, project: str | None = None) -> dict:
         with self.store.lock:
-            return self.report_for(self.store.jobs())
+            return self.report_for([j for j in self.store.jobs() if not project or j.project == project])
+
+    def sensitivity(self, project: str | None = None) -> dict:
+        with self.store.lock:
+            jobs = self.store.jobs()
+            now = self.now
+            frozen = {j.id: Curve.model_validate(self.store.curve(j.decision)) for j in jobs if j.decision}
+        curves = {j.id: frozen[j.id] if j.id in frozen else self.curve_for(j) for j in jobs}
+        return sensitivity(jobs, now, curves, self.settings, project)
 
     def replay(self) -> dict:
         """Separate seeded experiment: never changes the active clock, jobs, or approvals."""
@@ -207,7 +251,7 @@ class SchedulerService:
                          **{key: report[key] for key in ("avoided_g", "baseline_g", "scheduled_g", "included_jobs", "excluded_jobs")}})
             rows.extend(report["rows"])
         before, after = sum(d["baseline_g"] for d in days), sum(d["scheduled_g"] for d in days)
-        result = {"source": "SIMULATED", "seed": self.settings.seed, "total_jobs": 175, "days": days,
+        result = {"source": "SIMULATED", "workload_source": "SIMULATED WORKLOAD", "seed": self.settings.seed, "total_jobs": 175, "days": days,
                   "baseline_g": before, "scheduled_g": after, "avoided_g": before - after,
                   "reduction_pct": (before - after) * 100 / before if before else 0,
                   "included_jobs": sum(d["included_jobs"] for d in days),

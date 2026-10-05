@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.config import Settings, ZONES
-from app.models import AdvanceInput, ApprovalInput, JobInput
+from app.models import AdvanceInput, ApprovalInput, JobInput, ScaleInput
 from app.service import Conflict, SchedulerService
 from app.store.sqlite import Store
 
@@ -80,10 +80,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"status": "ok", "mode": "demo", "version": "1.0.0"}
 
     @app.get("/api/state")
-    def state():
+    def state(project: str | None = None):
         with store.lock:
-            jobs = store.jobs()
+            all_jobs = store.jobs()
+            jobs = [j for j in all_jobs if not project or j.project == project]
             return {"clock": service.now, "run_id": store.get("run_id"), "zones": ZONES,
+                    "projects": sorted({j.project for j in all_jobs}), "selected_project": project,
                     "jobs": jobs, "report": service.report_for(jobs), "replay": store.get("replay"),
                     "pending_approvals": sum(j.status == "needs_approval" for j in jobs),
                     "config": {"pue": settings.pue, "safety_min": settings.safety_min,
@@ -91,9 +93,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                "embodied_g": settings.embodied_g, "llm_enabled": settings.enable_llm}}
 
     @app.get("/api/jobs")
-    def jobs():
+    def jobs(project: str | None = None):
         with store.lock:
-            return store.jobs()
+            return [j for j in store.jobs() if not project or j.project == project]
 
     @app.post("/api/jobs", status_code=201)
     def add_job(data: JobInput):
@@ -103,8 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def curve(job_id: str):
         with store.lock:
             job = service._job(job_id)
-            if job.decision and job.decision.get("curve_snapshot"):
-                return job.decision["curve_snapshot"]
+            if job.decision:
+                return store.curve(job.decision)
             return service.curve_for(job)
 
     @app.post("/api/agent/cycle")
@@ -112,13 +114,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return service.cycle()
 
     @app.get("/api/approvals")
-    def approvals():
+    def approvals(project: str | None = None):
         with store.lock:
-            return [j for j in store.jobs() if j.status == "needs_approval"]
+            return [j for j in store.jobs() if j.status == "needs_approval" and (not project or j.project == project)]
 
     @app.post("/api/approvals/{job_id}")
     def review(job_id: str, data: ApprovalInput):
-        return service.review(job_id, data.action, data.comment)
+        return service.review(job_id, data.action, data.comment, data.approver_name)
 
     @app.post("/api/clock/advance")
     def advance(data: AdvanceInput):
@@ -128,34 +130,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def reset():
         return service.reset()
 
+    @app.post("/api/demo/scale")
+    def scale(data: ScaleInput):
+        return service.scale(data.n)
+
     @app.post("/api/demo/replay")
     def replay():
         return service.replay()
 
     @app.get("/api/logs")
-    def logs(outcome: str | None = None, actor: str | None = None, job_id: str | None = None, all_runs: bool = False):
+    def logs(outcome: str | None = None, actor: str | None = None, job_id: str | None = None, all_runs: bool = False, project: str | None = None):
         with store.lock:
             entries = store.logs(None if all_runs else store.get("run_id"))
             return [e for e in entries if (not outcome or e["outcome"] == outcome)
-                    and (not actor or e["actor"] == actor) and (not job_id or e["job_id"] == job_id)]
+                    and (not actor or e["actor"] == actor) and (not job_id or e["job_id"] == job_id) and (not project or e.get("project", "default") == project)]
+
+    @app.get("/api/logs/{decision_id}/evidence")
+    def evidence(decision_id: int):
+        with store.lock:
+            return store.evidence(decision_id)
+
+    @app.get("/api/analysis/flexibility")
+    def flexibility(project: str | None = None):
+        return service.sensitivity(project)
 
     @app.get("/api/report")
-    def report():
-        return service.report()
+    def report(project: str | None = None):
+        return service.report(project)
 
     @app.get("/api/report/export")
-    def export(format: str = "json", scope: str = "current"):
+    def export(format: str = "json", scope: str = "current", project: str | None = None):
         if format not in ("json", "csv") or scope not in ("current", "replay"):
             raise HTTPException(422, "Use format=json|csv and scope=current|replay")
         with store.lock:
-            data = store.get("replay") if scope == "replay" else service.report()
+            data = store.get("replay") if scope == "replay" else service.report(project)
         if data is None:
             raise Conflict("Run the seven-day replay first")
         if format == "json":
             return Response(json.dumps(data, indent=2), media_type="application/json",
                             headers={"Content-Disposition": f'attachment; filename="sci-{scope}.json"'})
         output = io.StringIO(newline="")
-        fields = ["job_id", "name", "zone", "status", "source", "included", "energy_kwh", "embodied_g", "functional_unit",
+        fields = ["job_id", "name", "project", "team", "zone", "status", "source", "workload_source", "included", "energy_kwh", "embodied_g", "functional_unit",
                   "baseline_start", "scheduled_start", "baseline_g", "scheduled_g", "avoided_g", "baseline_feasible"]
         writer = csv.DictWriter(output, fieldnames=fields)
         writer.writeheader()

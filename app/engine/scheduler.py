@@ -22,8 +22,28 @@ def ceil_slot(value: datetime) -> datetime:
     return rounded if rounded == value else rounded + timedelta(minutes=30)
 
 
+class JobGraph(list[Job]):
+    """A per-cycle index referencing the same mutable jobs; no stale state copies."""
+    def __init__(self, jobs: list[Job]):
+        super().__init__(jobs)
+        self.index = {j.id: j for j in jobs}
+        self.children = {j.id: [] for j in jobs}
+        for j in jobs:
+            for parent in j.depends_on:
+                self.children.setdefault(parent, []).append(j.id)
+        self.order = {j.id: i for i, j in enumerate(jobs)}
+
+    def related(self, job: Job) -> list[Job]:
+        ids = set(job.depends_on) | set(self.children.get(job.id, []))
+        return [self.index[k] for k in sorted(ids, key=lambda k: self.order.get(k, -1)) if k in self.index]
+
+
+def has_dependents(job: Job, jobs: list[Job]) -> bool:
+    return bool(jobs.children.get(job.id)) if isinstance(jobs, JobGraph) else any(job.id in j.depends_on for j in jobs)
+
+
 def dependency_floor(job: Job, jobs: list[Job]) -> datetime | None:
-    index = {j.id: j for j in jobs}
+    index = jobs.index if isinstance(jobs, JobGraph) else {j.id: j for j in jobs}
     ends = [job.earliest_start]
     for parent_id in job.depends_on:
         parent = index.get(parent_id)
@@ -49,7 +69,7 @@ def decide(job: Job, jobs: list[Job], now: datetime, curve: Curve, settings: Set
     if floor is not None:
         cursor = ceil_slot(max(job.earliest_start, now, floor))
         while cursor <= latest:
-            intensity, _ = curve.integrate(cursor, cursor + job.duration)
+            intensity, _ = curve.integrate(cursor, cursor + job.duration, evidence=False)
             candidates.append({"start": cursor.isoformat(), "mean_intensity_g_kwh": intensity,
                                "carbon_g": sci(energy, intensity, settings.embodied_g), "source": curve.source})
             cursor += timedelta(minutes=30)
@@ -62,8 +82,10 @@ def decide(job: Job, jobs: list[Job], now: datetime, curve: Curve, settings: Set
               "reduction_pct": 0.0, "sla_margin_min": None,
               "intensity_values_used": {"before": before_values, "after": []},
               "candidate_window_summary": {"count": len(candidates), "step_min": 30,
-                  "latest_start": latest.isoformat(), "safety_buffer_min": settings.safety_min,
-                  "candidates": candidates},
+                  "first_start": candidates[0]["start"] if candidates else None,
+                  "runtime_min": job.est_duration_min, "latest_start": latest.isoformat(), "safety_buffer_min": settings.safety_min,
+                  "candidates": sorted(candidates, key=lambda c: (c["carbon_g"], c["start"]))[:3],
+                  "retained": "Best three plus chosen; all starts reproducible from frozen curve"},
               "rule_ids": ["SLA_BUFFER", "NO_PAST_START", "DEPENDENCY_ORDER"],
               "thresholds": {"minimum_g": settings.threshold_g, "minimum_pct": settings.threshold_pct},
               "explanation": "No feasible start remains within the SLA and safety buffer."}
@@ -78,7 +100,7 @@ def decide(job: Job, jobs: list[Job], now: datetime, curve: Curve, settings: Set
     savings = before - after
     pct = 100 * savings / before if before else 0
     baseline_valid = is_feasible(job, job.baseline_start, now, settings, jobs)
-    protected = job.criticality != "flexible" or bool(job.depends_on) or any(job.id in j.depends_on for j in jobs)
+    protected = job.criticality != "flexible" or bool(job.depends_on) or has_dependents(job, jobs)
     qualifies = savings + 1e-9 >= settings.threshold_g and pct + 1e-9 >= settings.threshold_pct
     if chosen == job.baseline_start or (not qualifies and baseline_valid):
         chosen, after = job.baseline_start, before
@@ -94,6 +116,10 @@ def decide(job: Job, jobs: list[Job], now: datetime, curve: Curve, settings: Set
     else:
         result.update(outcome="AUTO_RESCHEDULED", explanation="Flexible, independent job moved to the lowest-carbon feasible slot; both savings thresholds passed.")
         result["rule_ids"].extend(["FLEXIBLE_ONLY", "MIN_SAVINGS_BOTH"])
+    summary = result["candidate_window_summary"]["candidates"]
+    chosen_candidate = next(c for c in candidates if c["start"] == chosen.isoformat())
+    if chosen_candidate not in summary:
+        summary.append(chosen_candidate)
     _, after_values = curve.integrate(chosen, chosen + job.duration)
     savings = before - after
     result.update(chosen_start=chosen.isoformat(), carbon_after_g=after, avoided_g=savings,

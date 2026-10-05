@@ -41,7 +41,7 @@ You can also activate the virtual environment and run `python -m pytest -q`. On 
 1. Click **Reset demo** if needed. The clock starts at **9 October 2026, 00:00 UTC** and the queue contains 25 jobs across Germany, California, and Western India.
 2. Click **Run agent cycle**. The default first pass applies 15 schedules, leaves 7 proposals for review, and flags 3 blocked/infeasible jobs. Click it again: zero duplicate decisions.
 3. Select **Warehouse refresh**. Compare the fixed local 14:00 baseline with the cleaner chosen window. The chart is drawn from the decision's frozen intensity data.
-4. Open **Approval inbox**, enter a comment, and approve **Daily revenue report**. Its schedule and accounting update only after approval. Reject another proposal to show that rejected changes receive no savings credit.
+4. Open **Approval inbox**, enter your reviewer name and a comment, and approve **Daily revenue report**. Its schedule and accounting update only after approval. Reject another proposal to show that rejected changes receive no savings credit.
 5. Expand **Decision log → Inspect complete decision evidence**. Show rule IDs, intensity intervals, candidate starts, margins, source, and actor.
 6. Click **Replay 7 days**: 175 seeded jobs, about **167,144 g / 167.1 kg CO₂e** of modeled savings on 105 applied schedules, roughly **40.7%**. This is a separate experiment and leaves the active queue untouched.
 7. Export a CSV or JSON report. Advance the demo clock to show simulated completion.
@@ -54,9 +54,9 @@ The complete presenter script, plain-English walkthrough, rubric mapping and 90-
 - Exhaustive 30-minute candidate search using exact time-weighted carbon intensity over each run; deterministic earliest-start tie breaking.
 - SLA deadline minus runtime minus safety buffer; no starts before the simulated clock or prerequisite completion.
 - Dual savings threshold, default **5% AND 5 g**, with independent flexible jobs only eligible for automatic movement.
-- Approval/rejection with required human comment; stale approvals are rejected and dependency feasibility is checked again when applying.
-- Append-only SQLite audit records enforced with triggers; decisions, frozen curves, intensity samples, rules, thresholds, actor, simulated timestamp and wall-clock timestamp retained.
-- Explicit LIVE/SIMULATED provenance. No averaging of live readings with synthetic filler inside a decision.
+- Approval/rejection with required self-reported approver name and human comment; stale approvals are rejected and dependency feasibility is checked again when applying.
+- Append-only SQLite audit records enforced with triggers; decisions reference content-addressed frozen curves; used intensity intervals, best three plus chosen candidates, rules, thresholds, actor and both timestamps are retained. Legacy audit rows remain untouched.
+- Explicit LIVE / REAL (RECORDED) / SIMULATED carbon provenance and separate SIMULATED WORKLOAD labels. No averaging of live readings with synthetic filler inside a decision.
 - Persistent simulated clock, isolated weekly replay, reset with audit-history retention, browser queue watcher, and SCI exports.
 - Responsive dark dashboard, SVG charts, source badges, queue filters, approval inbox, log filters and add-job form.
 - Optional text-only OpenAI explanations. Deterministic explanations always remain authoritative.
@@ -139,9 +139,30 @@ Set `ELECTRICITY_MAPS_TOKEN` in `.env` to enable the optional provider. The adap
 
 Only complete, non-overlapping coverage of the entire comparison window is accepted. Missing token, authorization failure, timeout, invalid response, stale readings or incomplete coverage cause the **entire decision curve** to use seeded synthetic data. Latest-only readings are never extrapolated into a forecast. Each data interval retains its kind (`latest`, `history`, `forecast`, `synthetic`) and source. `LIVE` means obtained from the live API, **including API forecasts/estimates**, not direct job emission measurements.
 
-The demo clock is intentionally fixed to the hackathon date, so a real-time token on another date may still fall back. Use the add-job API with relevant timestamps and move the demo clock appropriately for provider experiments; default replay is always synthetic. Actual paid Electricity Maps access was not available for verification; HTTP response, retry, timeout, coverage and fallback behavior are tested with fixtures.
+When an Electricity Maps token is present, reset uses current UTC rounded **up** to the next 30-minute boundary, with jobs generated relative to it. Without a token the fixed demo clock remains 9 October 2026, 00:00 UTC. Explicit recorded mode instead opens the historical replay at 15 January 2025, 00:00 UTC. The baseline remains 14:00 local on each job's earliest-start date; it is never moved to improve results. Weekly replay is always synthetic. Actual paid Electricity Maps access was not available for verification; HTTP response, retry, timeout, coverage and fallback behavior are tested with fixtures.
 
 Synthetic curves have zone-specific base intensity, a midday solar dip, evening peak, mild overnight reduction and stable seed/time/zone-based noise. These are pedagogical scenarios, not historical reconstructions or regional forecasts.
+
+
+## Public UK provider and recorded data
+
+Set `CARBON_PROVIDER=uk` for the no-key [UK Carbon Intensity API](https://carbon-intensity.github.io/api-definitions/). It supports **GB** only and requests `/intensity/{from}/fw48h`, preserving half-hour forecast intervals. Requests have bounded retries/timeouts and a TTL cache. Complete comparison coverage is required; gaps, overlaps, invalid values, other zones and unavailable dates fall back as a whole to SIMULATED. API forecasts are labeled LIVE, not measured emissions. GB uses Europe/London, including DST. Selecting this provider seeds GB jobs; the no-token clock still stays fixed as specified, so dates outside API coverage can fall back. A live forecast integration is tested with fixtures; no successful current forecast coverage is claimed.
+
+Set `CARBON_PROVIDER=recorded` to replay the bundled real historical GB data with GB seed jobs and the original historical clock. `app/providers/recordings/gb-response.json` is the unmodified public API response for [15-16 January 2025](https://api.carbonintensity.org.uk/intensity/2025-01-15T00:00Z/fw48h). `gb-recorded.json` preserves its `intensity.actual` values and timestamps, source URL and retrieval timestamp. The response includes the preceding 23:30 interval. This is **REAL (RECORDED)** grid-intensity data, not live data, measured workload emissions or customer validation. Recorded actual grid estimates also make this a hindsight experiment, not evidence of forecast accuracy. No historical values are shifted, repeated or extrapolated onto other dates.
+
+Recording format: `format_version: 1`, `zone`, `source: "REAL (RECORDED)"`, `provider`, `source_url`, `retrieved_at`, and `points` with aware `start`/`end`, numerical `intensity` in g CO2e/kWh, the same `source`, and `kind: "recorded_actual"` or `"recorded_forecast"`. Sample files must set `sample: true` and are rejected by the real-data loader. A custom recording must cover the requested dates; otherwise fallback is SIMULATED. This loader validates format/provenance metadata, not the authenticity of an arbitrary file supplied by an administrator.
+
+## Workload scale, flexibility and projects
+
+`POST /api/demo/scale` with `{"n":25}` generates 1-500 seeded illustrative jobs and replaces only the active queue/run, preserving audit history and clock. The dashboard has the same control. These are **SIMULATED WORKLOAD**, including when their carbon source is LIVE or REAL (RECORDED). The generator uses approximately 75% flexible (including 5% deliberately infeasible), 15% hard-deadline and 10% business-critical jobs, ETL/report/ML duration and power ranges, and small dependency chains. These distributions are examples, not measured enterprise telemetry. It assigns three example projects and teams. The default 25-job reset scenario and weekly replay remain unchanged.
+
+A measured local offline 500-job cycle completed in 2.215 seconds during this session; the regression test requires under five seconds. This is a local test result, not a production throughput guarantee. Per-cycle dependency indexes eliminate repeated whole-queue relationship scans. Identical curve requests are reused within a cycle; all candidate starts and decision rules remain unchanged. Network requests and enabled per-job LLM narration are excluded from this offline performance expectation.
+
+`GET /api/analysis/flexibility` and **Analyze flexibility** compare +/-1h, +/-2h, +/-4h and +/-8h start windows around each job's **original 14:00 local baseline on its earliest-start date**. Windows are clipped to original earliest start, current clock, runtime, deadline and buffer. The unchanged engine and dual thresholds evaluate independent flexible jobs with feasible baselines. Protected, linked, rejected and infeasible jobs are excluded; no approvals are invented. Existing decisions use frozen curves, unevaluated jobs use the selected provider, and sources/exclusions are returned per scenario and job. These are hypothetical modeled savings, never added to applied totals; state and audit history remain unchanged. Changing queue state invalidates the displayed analysis.
+
+Jobs accept `project` and `team`, both defaulting to `default`. The dashboard project selector filters queue, approvals, carbon cards, current reports/exports, audit list and sensitivity. `?project=name` is supported on state, jobs, report, current export, logs and flexibility endpoints. Reports include per-project rollups; weekly replay remains its separate global seeded experiment. Project filtering is presentation only: scheduling and dependency checks always consider the complete queue, including cross-project links.
+
+Approvals and rejections require `approver_name` plus `comment`, recorded in append-only audit history. **There is still no authentication**: this is self-reported attribution, not verified identity, authorization, tenant isolation or RBAC. Old job records load with default project/team fields; old audit rows remain immutable and readable. New curves and optional explanation records also have append-only triggers. Complete evidence is available on demand at `/api/logs/{id}/evidence`; only the best three and chosen candidate are retained inline, and all candidates can be reconstructed using the frozen curve and recorded rules.
 
 ## Environment variables
 
@@ -157,6 +178,8 @@ Copy `.env.example` to `.env` if overriding defaults. Never commit `.env`.
 | `SAVINGS_THRESHOLD_G` | `5` | Minimum absolute grams saved |
 | `SAFETY_BUFFER_MIN` | `15` | Extra time required before SLA |
 | `SYNTHETIC_SEED` | `42` | Reproducible synthetic curves |
+| `CARBON_PROVIDER` | `auto` | `auto`, `synthetic`, `electricity_maps`, `uk`, or `recorded` |
+| `RECORDED_CARBON_PATH` | `app/providers/recordings/gb-recorded.json` | Version 1 recorded intensity JSON |
 | `ELECTRICITY_MAPS_TOKEN` | empty | Optional live API credentials |
 | `PROVIDER_TIMEOUT_SECONDS` | `3` | Timeout per provider HTTP operation |
 | `PROVIDER_RETRIES` | `1` | Additional retries per endpoint, maximum 3 |
@@ -174,13 +197,16 @@ The entirely local API reference is at `/docs`; the machine-readable schema is `
 ```text
 GET  /api/health, /api/state, /api/jobs, /api/approvals, /api/report
 GET  /api/jobs/{id}/curve
+GET  /api/logs/{decision_id}/evidence
+GET  /api/analysis/flexibility?project=default
 GET  /api/logs?actor=human&outcome=APPROVED&all_runs=false
 GET  /api/report/export?format=csv|json&scope=current|replay
 POST /api/jobs                         JobInput JSON (see OpenAPI)
 POST /api/agent/cycle                  {}
-POST /api/approvals/{id}               {"action":"approve","comment":"Reviewed SLA"}
+POST /api/approvals/{id}               {"action":"approve","approver_name":"Reviewer name","comment":"Reviewed SLA"}
 POST /api/clock/advance                {"minutes":60}
 POST /api/demo/reset                  {}
+POST /api/demo/scale                  {"n":25} (1-500; replaces queue, retains history)
 POST /api/demo/replay                 {}
 ```
 
@@ -204,7 +230,7 @@ Container runs as a non-root user. `.env`, local databases and virtual environme
 - Baseline is always 14:00 local on the earliest-start date, even if that counterfactual is infeasible. Infeasible baseline replacements always require review and are flagged in the report. No emergency reschedule is silently treated as normal automatic carbon optimization.
 - The 30-minute grid is aligned in UTC. Supported zones have whole-hour or half-hour offsets, so local half-hour alignment also holds; IANA rules account for DST.
 - SQLite transaction serialization protects concurrent agent cycles in one process. The audit table forbids UPDATE/DELETE through SQLite triggers, but this is not a cryptographically tamper-proof ledger against a database administrator.
-- The live curve cache can delay recovery by up to its TTL. Provider requests and optional explanations are synchronous and can temporarily delay other operations; use the synthetic mode for a predictable stage demo.
+- The live curve cache can delay recovery by up to its TTL. Provider requests remain synchronous inside the scheduling transaction. Optional explanations run synchronously **after commit**, outside the store lock, and append to a separate immutable explanation table; a slow model can delay the cycle HTTP response but cannot hold the scheduling transaction. Narration failures leave deterministic evidence intact; use the synthetic mode for a predictable stage demo.
 - No forecasts are asserted to be ground truth. Savings use attributional grid intensity; no claim is made about marginal/consequential grid emissions or certified carbon credits.
 - Customer validation is outstanding. The developer guide supplies an interview and pilot plan, not invented interview findings.
 
