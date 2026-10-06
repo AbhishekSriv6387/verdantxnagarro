@@ -102,6 +102,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if action != "view" and not roles.intersection(allowed):
             raise HTTPException(403, "Your role cannot perform this action")
         request.state.environment = env
+        request.state.is_admin = bool(roles.intersection({"platform_admin", "client_admin"}))
+        request.state.assigned_project = env["project_name"] if not request.state.is_admin else None
         service = directory.service(env)
         return service, service.store, service.settings
 
@@ -136,6 +138,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/state")
     def state(request: Request, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         with store.lock:
             all_jobs = store.jobs()
             jobs = [j for j in all_jobs if not project or j.project == project]
@@ -150,12 +154,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/jobs")
     def jobs(request: Request, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         with store.lock:
             return [j for j in store.jobs() if not project or j.project == project]
 
     @app.post("/api/jobs", status_code=201)
     def add_job(request: Request, data: JobInput):
         service, store, settings = workspace(request, "operate")
+        if request.state.assigned_project and data.project != request.state.assigned_project:
+            raise HTTPException(403, f"You can only add jobs to project: {request.state.assigned_project}")
         return service.add(data)
 
     @app.get("/api/jobs/{job_id}/curve")
@@ -163,6 +171,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         service, store, settings = workspace(request, "view")
         with store.lock:
             job = service._job(job_id)
+            if request.state.assigned_project and job.project != request.state.assigned_project:
+                raise HTTPException(403, "Access denied to this job")
             if job.decision:
                 return store.curve(job.decision)
             return service.curve_for(job)
@@ -175,12 +185,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/approvals")
     def approvals(request: Request, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         with store.lock:
             return [j for j in store.jobs() if j.status == "needs_approval" and (not project or j.project == project)]
 
     @app.post("/api/approvals/{job_id}")
     def review(request: Request, job_id: str, data: ApprovalInput):
         service, store, settings = workspace(request, "approve")
+        with store.lock:
+            job = service._job(job_id)
+            if request.state.assigned_project and job.project != request.state.assigned_project:
+                raise HTTPException(403, "Access denied to this job")
         return service.review(job_id, data.action, data.comment, request.state.user["display_name"], request.state.user["id"])
 
     @app.post("/api/clock/advance")
@@ -206,6 +222,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/logs")
     def logs(request: Request, outcome: str | None = None, actor: str | None = None, job_id: str | None = None, all_runs: bool = False, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         with store.lock:
             entries = store.logs(None if all_runs else store.get("run_id"))
             return [e for e in entries if (not outcome or e["outcome"] == outcome)
@@ -215,27 +233,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def evidence(request: Request, decision_id: int):
         service, store, settings = workspace(request, "view")
         with store.lock:
-            return {**store.evidence(decision_id), "scope": store.get("scope")}
+            ev = store.evidence(decision_id)
+            if request.state.assigned_project and ev.get("project", "default") != request.state.assigned_project:
+                raise HTTPException(403, "Access denied to this evidence")
+            return {**ev, "scope": store.get("scope")}
 
     @app.get("/api/analysis/flexibility")
     def flexibility(request: Request, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         return service.sensitivity(project)
 
     @app.get("/api/report")
     def report(request: Request, project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         return service.report(project)
 
     @app.get("/api/report/export")
     def export(request: Request, format: str = "json", scope: str = "current", project: str | None = None):
         service, store, settings = workspace(request, "view")
+        if request.state.assigned_project:
+            project = request.state.assigned_project
         if format not in ("json", "csv") or scope not in ("current", "replay"):
             raise HTTPException(422, "Use format=json|csv and scope=current|replay")
         with store.lock:
             data = store.get("replay") if scope == "replay" else service.report(project)
         if data is None:
             raise Conflict("Run the seven-day replay first")
+        if request.state.assigned_project and scope == "replay":
+            data = dict(data)
+            data["rows"] = [r for r in data["rows"] if r.get("project", "default") == request.state.assigned_project]
         if format == "json":
             return Response(json.dumps(data, indent=2), media_type="application/json",
                             headers={"Content-Disposition": f'attachment; filename="sci-{scope}.json"'})

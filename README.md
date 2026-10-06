@@ -6,6 +6,19 @@ Verdant finds lower-carbon execution windows for enterprise batch jobs, automati
 
 **All displayed savings are modeled SCI estimates.** The default dataset is prominently labeled **SIMULATED**. The app dispatches no real workloads and makes no claim of measured emissions reductions or completed customer validation.
 
+**🎬 Demo video:** [*Link to be added after recording*]
+
+### Hackathon Deliverables
+
+| Deliverable | Location | Description |
+|---|---|---|
+| **README** | This file | Setup, run instructions, sample data, known limitations |
+| **Agent design document** | [docs/agent-design.md](docs/agent-design.md) | Architecture diagram, goal, users, data sources, tools, orchestration, decision points, human oversight, failure handling |
+| **Pitch deck** | [docs/pitch-deck.md](docs/pitch-deck.md) | 10 slides: problem, solution, agent workflow, methodology, results, impact, efficiency, demo walkthrough, roadmap, summary |
+| **Augmentation log** | [docs/augmentation-log.md](docs/augmentation-log.md) | AI usage across the SDLC: tasks attempted, outputs accepted/modified/rejected, errors identified, corrective steps |
+| **Demo video** | *To be recorded* | 3–5 minutes of the agent running (not a slide walkthrough) |
+| **Developer guide** | [docs/UNDERSTAND_THIS.md](docs/UNDERSTAND_THIS.md) | Presenter script, rubric mapping, 90-day pilot plan, jury Q&A |
+
 ## Run it
 
 Python 3.11+ is required. Python 3.12 was used for verification.
