@@ -56,6 +56,9 @@ class JobInput(BaseModel):
 
 
 class Job(JobInput):
+    tenant_id: str = "client-default"
+    project_id: str = "project-default"
+    environment_id: str = "env-default"
     id: str
     workload_source: str = "SIMULATED WORKLOAD"
     status: Status = "pending"
@@ -78,7 +81,7 @@ def baseline_for(job: JobInput) -> datetime:
 class ApprovalInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: Literal["approve", "reject"]
-    approver_name: str = Field(min_length=1, max_length=100)
+    approver_name: str = Field(default="Authenticated reviewer", min_length=1, max_length=100)
     comment: str = Field(min_length=1, max_length=1000)
 
     @field_validator("comment", "approver_name")

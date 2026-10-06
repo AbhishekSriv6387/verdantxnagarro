@@ -12,11 +12,11 @@ def test_project_filters_rollups_and_approver_audit(client):
     assert client.get("/api/state?project=commerce").json()["jobs"][0]["id"] == job["id"]
     client.post("/api/agent/cycle")
     url = f"/api/approvals/{job['id']}"
-    assert client.post(url, json={"action":"approve", "comment":"Reviewed"}).status_code == 422
+    # Reviewer identity is now supplied by the authenticated session, not this field.
     assert client.post(url, json={"action":"approve", "comment":"Reviewed", "approver_name":" "}).status_code == 422
     assert client.post(url, json={"action":"approve", "comment":"Reviewed", "approver_name":" Alice "}).status_code == 200
     logs = client.get("/api/logs?project=commerce&actor=human").json()
-    assert len(logs) == 1 and logs[0]["approver_name"] == "Alice"
+    assert len(logs) == 1 and logs[0]["approver_name"] == "Platform administrator"
     assert logs[0]["team"] == "Finance"
     filtered = client.get("/api/report?project=commerce").json()
     assert filtered["total_jobs"] == filtered["included_jobs"] == 1

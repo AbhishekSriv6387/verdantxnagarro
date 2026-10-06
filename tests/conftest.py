@@ -17,8 +17,10 @@ def settings():
 
 
 @pytest.fixture
-def client(settings):
+def client(settings, monkeypatch):
+    monkeypatch.setenv("VERDANT_ADMIN_PASSWORD", "offline-test-password")
     with TestClient(create_app(settings)) as client:
+        assert client.post("/api/auth/login", json={"username": "admin", "password": "offline-test-password"}).status_code == 200
         yield client
 
 

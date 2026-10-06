@@ -1,5 +1,6 @@
 """Exercise a RUNNING local demo. Resets demo jobs; preserves all decision history."""
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +9,14 @@ import httpx
 
 def main() -> None:
     base = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8000"
-    with httpx.Client(base_url=base, timeout=60) as client:
+    from dotenv import load_dotenv
+    load_dotenv()
+    username, password = os.getenv("SMOKE_USERNAME", "admin"), os.getenv("SMOKE_PASSWORD")
+    if not password:
+        raise SystemExit("Set SMOKE_PASSWORD for an authorized account; this script resets its selected environment.")
+    environment_id = os.getenv("SMOKE_ENVIRONMENT_ID", "env-default")
+    with httpx.Client(base_url=base, timeout=60, headers={"X-Environment-ID": environment_id}) as client:
+        client.post("/api/auth/login", json={"username": username, "password": password}).raise_for_status()
         def get(path: str):
             response = client.get(path)
             response.raise_for_status()

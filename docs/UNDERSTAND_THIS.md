@@ -62,7 +62,7 @@ If both savings thresholds pass, and the job is independent and flexible, it can
 
 The service coordinates the pure decision and its database update. Optional LLM prose is requested only after commit, outside the lock, and appended against the original decision ID; deterministic evidence commits with the schedule. It applies both inside one transaction so you cannot get a changed schedule with a missing log. Duplicate cycles skip already-applied jobs and proposals. A fingerprint prevents repeated identical blocked-job decisions at the same clock/dependency state.
 
-Approval reads the stored proposal and rechecks feasibility against the current clock and prerequisites. A person cannot approve yesterday's window. Human comments and self-reported approver names are mandatory and become part of the audit record. There is no authentication.
+Approval reads the stored proposal and rechecks feasibility against the current clock and prerequisites. A person cannot approve yesterday's window. Human comments are mandatory. The signed-in reviewer identity and user ID become part of the audit record; roles are checked before review.
 
 The service also handles seeding, time advancement, reports and isolated replay. The replay uses the same decision engine but fresh seven-day synthetic workloads. It never invents human approvals, changes the active clock, or adds replay savings to the active daily total.
 
@@ -76,7 +76,7 @@ This is durable and useful for a demo, but a database administrator can still al
 
 FastAPI validates requests and exposes routes for jobs, cycles, approvals, clock, replay, reports and logs. It serves all dashboard assets locally. Even the API reference is local, rather than loading Swagger JavaScript from a CDN. OpenAPI remains available for integration tools.
 
-Cross-origin writes are blocked, HTML has a restrictive content policy, SQL is parameterized, and CSV text cells are protected from spreadsheet formula interpretation. These are useful safeguards; they do not replace identity, authorization and deployment security.
+Cross-origin writes are blocked, HTML has a restrictive content policy, SQL is parameterized, and CSV text cells are protected from spreadsheet formula interpretation. These complement the new local sign-in, scoped roles and environment isolation; enterprise identity integration and deployment security still need a pilot review.
 
 ### `ui/`: the presentation
 
@@ -122,7 +122,7 @@ The weights below match the supplied event screenshot. These are evidence you ca
 | Measurable real-world impact | 25 | Per-run SCI, aggregate grams/percent, exact counterfactual, reproducible week, exportable evidence | Replace estimated power with actual workload telemetry and validate realized reductions |
 | Customer or user validation | 15 | A concrete data-platform/ML-ops workflow, review UI, defined persona and interview plan below | Interview real owners and attach permissioned notes; currently **not completed** |
 | Technical execution | 15 | Working offline app, deterministic exhaustive search, provider interface/fallback, persistent approvals and automated tests | Run the live provider with your entitlement and a real scheduler in shadow mode |
-| Production readiness | 15 | Input validation, transactional writes, idempotence, logging, caching, Dockerfile, locked dependencies, error states | Add identity/RBAC, workload adapter, telemetry, resource constraints, migrations and operations |
+| Production readiness | 15 | Input validation, transactional writes, idempotence, logging, caching, Dockerfile, locked dependencies, error states | Integrate enterprise SSO/MFA with existing scoped roles; add workload adapter, telemetry, resource constraints, migrations and operations |
 | Effective Codex leverage | 15 | Codex implemented backend, frontend, tests, provider fixtures and docs; ran tests, HTTP checks and browser checks | Show this conversation and specific test-driven corrections, plus AGENTS.md for continuation |
 | Responsible engineering | 10 | Non-bypassable SLA/approval rules, honest source labels, no unapproved savings, constrained optional LLM | Get security review and deployment-specific data handling/approval policies |
 | Reuse and scale potential | 5 | Small provider/engine/service modules, zone model, OpenAPI and exports | Demonstrate a second workload type/team or add a thin Airflow/Kubernetes adapter |
@@ -152,7 +152,7 @@ Suggested pilot acceptance targets, to agree with users rather than report as ac
 |---|---|---|
 | Days 1–15 | Interview owners; select one queue and authorized zones; inventory dependencies, calendars and data-freshness limits | Signed-off eligibility rules and baseline workload dataset |
 | Days 16–30 | Add read-only Airflow/Kubernetes adapter, real carbon entitlement and measured energy/runtime inputs | Shadow recommendations compared with unchanged actual runs |
-| Days 31–45 | Add identity, RBAC, authenticated approver audit, secrets management, retention and monitoring | Security review, rollback procedure and dry-run validation |
+| Days 31–45 | Integrate enterprise identity with existing scoped roles and authenticated audit; harden secrets management, retention and monitoring | Security review, rollback procedure and dry-run validation |
 | Days 46–60 | Add capacity constraints and uncertainty-aware duration/forecast margins | Stress tests, failure recovery and no induced SLA violations in shadow mode |
 | Days 61–75 | Enable a small allowlisted flexible queue with a kill switch | Daily measured execution outcomes and approvals reviewed with owners |
 | Days 76–90 | Expand only if results justify it; reconcile actual carbon and operational burden | Pilot decision memo: measured impact, reliability, cost and user acceptance |
@@ -185,7 +185,7 @@ Production accounting should preserve baseline policy before making changes, dis
 
 **Where is real validation?** It has not happened yet. Present the prototype and interview plan honestly; attach real permissioned feedback when collected.
 
-**What is missing before production?** Authentication/authorization, real execution integration, measured energy, capacity contention, operational calendars, prediction uncertainty, migrations, high availability and organization-specific compliance controls. The Dockerfile is provided but Docker execution was not available in this build environment.
+**What is missing before production?** Enterprise SSO/MFA, real execution integration, measured energy, capacity contention, operational calendars, prediction uncertainty, migrations, high availability and organization-specific compliance controls. The Dockerfile is provided but Docker execution was not available in this build environment.
 
 ## Reading references
 
@@ -198,6 +198,23 @@ The [SCI specification](https://sci.greensoftware.foundation/) defines the calcu
 - The UK Carbon Intensity adapter supplies no-key GB half-hour forecasts for 48 hours, using the same complete-coverage-or-whole-fallback policy. In no-token mode the fixed clock can request dates unavailable from a live API; the source then honestly says SIMULATED. Recorded mode uses bundled actual grid estimates from the public API for 15-16 January 2025, at original dates, labeled REAL (RECORDED). They are neither measured job emissions nor live forecasts. README documents selection, format and source URL.
 - The workload generator replaces the active queue with up to 500 seeded jobs, retaining audit history. Every generated workload is SIMULATED WORKLOAD independently of carbon provenance. The distributions are illustrative, not customer-validated. A 500-job offline local cycle was measured at 2.215 seconds; network and optional LLM latency are separate limitations.
 - Flexibility sensitivity is a read-only, hypothetical analysis of +/-1, 2, 4 and 8-hour start windows around the original fixed baseline. It clips windows to all original constraints and excludes protected, linked, rejected or baseline-infeasible jobs. It uses frozen evidence for evaluated jobs and preserves both thresholds. Its chart never changes applied-savings totals.
-- Project and team fields default to `default`. Dashboard/report filters and project rollups make workload attribution visible, but do not isolate tenants or alter cross-project dependency guards. Reviewer names are required self-reported audit text; there is still no authentication.
+- Project and team fields default to `default`. Dashboard/report filters and project rollups make workload attribution visible, but do not isolate tenants or alter cross-project dependency guards. Reviewer names are required authenticated audit identity; local roles now enforce access.
 
 See [BUILD_LOG.md](BUILD_LOG.md) for session changes and actual verification. Default demo figures in this guide remain the fixed synthetic scenario only; do not apply them to live, recorded, scaled or filtered workloads.
+
+
+## How the client/project model now works
+
+Verdant has a central directory and separate scheduler databases for each environment. A client owns projects, and projects own environments. The directory stores stable IDs, local users, memberships, project policies, provider choices and client reporting consent. A project operator sees only assigned projects; an approver can review their jobs but cannot run cycles; a viewer can read/export only. Client administrators manage their own clients. The bootstrap platform administrator maintains the service and can administer all workspaces.
+
+`app/access.py` implements hashed local passwords, expiring hashed sessions, login throttling, membership resolution and environment-specific service creation. `app/api/access.py` implements onboarding, configuration, role grants/revocation, client consent, organization aggregates and password changes. `app/api/main.py` authenticates every data request and authorizes its environment/action before invoking the existing SchedulerService. Each environment owns its clock, queue, provider/cache, logs, evidence and replay; cross-environment dependencies are rejected. The shared pure scheduler math and safety rules are unchanged.
+
+`app/ui/login.html` is sign-in. `/admin` is client/project/environment onboarding, access management, provider and stricter-policy configuration, reporting consent and password change. The dashboard selector chooses the active client/project/environment. Existing project strings are preserved as workload groups, while server-controlled project IDs define actual access boundaries. New environments start empty; demo generation is explicit.
+
+An Electricity Maps credential is resolved from a variable tied to the environment ID, never from another workspace. The API displays the variable name/configured flag, not the token. The old global token belongs only to the original demo. External LLM narration is disabled in this authenticated deployment until client-specific outbound consent/credentials exist; deterministic explanations always work.
+
+Only a designated client administrator can opt their client into organization reporting. The platform report contains approved aggregate fields and source labels; no job details or evidence. Opt-out takes effect immediately for subsequent requests. Platform administrators still have workspace administration access, so report consent is not isolation against an administrator. Local file administrators can access the database files. The next enterprise step is SSO/MFA, deployment hardening and an independent access-control review, not a claim that the demo is enterprise-certified.
+
+A short demonstration: sign in as admin; create Client A, its Analytics project and a Development environment; create an operator and an approver; select the environment and explicitly reset/generate a simulated workload. Sign in as operator and run a cycle; approval controls are unavailable. Sign in as approver, review a protected job and show the authenticated audit identity. Sign in as a client administrator to authorize aggregate reporting, then use the platform account to show that only opted-in clients contribute to the organization view. Revoke consent and refresh to show removal. Present all savings as modeled.
+
+These additions strengthen the technical, governance and reuse evidence in the rubric. They do not establish customer validation, realized emissions savings, enterprise SSO or production readiness. See README for exact roles, first-login steps, storage layout and limitations.

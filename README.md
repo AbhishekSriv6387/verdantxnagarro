@@ -26,7 +26,7 @@ python3 -m venv .venv
 python3 run.py
 ```
 
-Open **http://127.0.0.1:8000**. No token, account, internet connection, Node.js, or build step is needed after Python dependencies are installed. `requirements.txt` declares supported ranges; `requirements.lock` records the exact verified dependency set. For an air-gapped environment, download these wheels on a connected machine first.
+Open **http://127.0.0.1:8000** and sign in. On first launch, username is `admin`; set `VERDANT_ADMIN_PASSWORD` (12+ characters) beforehand, or read the randomly generated password in `data/carbon.db.control.bootstrap.txt` (beside the control database if DATABASE_PATH differs). Change it in **Clients, access & account**, then delete the bootstrap file. No external account, carbon token, internet connection, Node.js, or build step is needed after dependencies are installed. `requirements.txt` declares supported ranges; `requirements.lock` records the exact verified dependency set. For an air-gapped environment, download these wheels on a connected machine first.
 
 ```bash
 python run.py --test     # one-command tests, using .venv automatically
@@ -41,7 +41,7 @@ You can also activate the virtual environment and run `python -m pytest -q`. On 
 1. Click **Reset demo** if needed. The clock starts at **9 October 2026, 00:00 UTC** and the queue contains 25 jobs across Germany, California, and Western India.
 2. Click **Run agent cycle**. The default first pass applies 15 schedules, leaves 7 proposals for review, and flags 3 blocked/infeasible jobs. Click it again: zero duplicate decisions.
 3. Select **Warehouse refresh**. Compare the fixed local 14:00 baseline with the cleaner chosen window. The chart is drawn from the decision's frozen intensity data.
-4. Open **Approval inbox**, enter your reviewer name and a comment, and approve **Daily revenue report**. Its schedule and accounting update only after approval. Reject another proposal to show that rejected changes receive no savings credit.
+4. Open **Approval inbox**, enter a comment (reviewer identity comes from sign-in), and approve **Daily revenue report**. Its schedule and accounting update only after approval. Reject another proposal to show that rejected changes receive no savings credit.
 5. Expand **Decision log → Inspect complete decision evidence**. Show rule IDs, intensity intervals, candidate starts, margins, source, and actor.
 6. Click **Replay 7 days**: 175 seeded jobs, about **167,144 g / 167.1 kg CO₂e** of modeled savings on 105 applied schedules, roughly **40.7%**. This is a separate experiment and leaves the active queue untouched.
 7. Export a CSV or JSON report. Advance the demo clock to show simulated completion.
@@ -54,12 +54,61 @@ The complete presenter script, plain-English walkthrough, rubric mapping and 90-
 - Exhaustive 30-minute candidate search using exact time-weighted carbon intensity over each run; deterministic earliest-start tie breaking.
 - SLA deadline minus runtime minus safety buffer; no starts before the simulated clock or prerequisite completion.
 - Dual savings threshold, default **5% AND 5 g**, with independent flexible jobs only eligible for automatic movement.
-- Approval/rejection with required self-reported approver name and human comment; stale approvals are rejected and dependency feasibility is checked again when applying.
+- Approval/rejection with authenticated reviewer identity and required human comment; stale approvals are rejected and dependency feasibility is checked again when applying.
 - Append-only SQLite audit records enforced with triggers; decisions reference content-addressed frozen curves; used intensity intervals, best three plus chosen candidates, rules, thresholds, actor and both timestamps are retained. Legacy audit rows remain untouched.
 - Explicit LIVE / REAL (RECORDED) / SIMULATED carbon provenance and separate SIMULATED WORKLOAD labels. No averaging of live readings with synthetic filler inside a decision.
 - Persistent simulated clock, isolated weekly replay, reset with audit-history retention, browser queue watcher, and SCI exports.
 - Responsive dark dashboard, SVG charts, source badges, queue filters, approval inbox, log filters and add-job form.
-- Optional text-only OpenAI explanations. Deterministic explanations always remain authoritative.
+- Optional text-only OpenAI adapter remains available to standalone SchedulerService consumers. The authenticated platform currently disables external LLM narration for all workspaces; deterministic explanations remain authoritative.
+
+
+## Client and project platform (October 2026)
+
+The platform separates **client → project → environment** using stable server-generated IDs. Open **Clients, access & account** in the sidebar (`/admin`) to create a client, project, environment and assigned users. New environments start empty; add a job or explicitly generate/reset a SIMULATED WORKLOAD. A name such as Production does not turn this demo into a real workload executor.
+
+Existing jobs/history remain in **Local demo / Default project / Demo** (`client-default`, `project-default`, `env-default`). The existing database is retained; only mutable job payloads gain scope IDs. Old decisions remain append-only and belong to their original environment store. The old `project` string remains a workload-group label for compatibility; it never grants access. Team labels likewise are not security roles. New audit rows and report rows carry tenant/project/environment IDs; old evidence is returned with its store scope.
+
+| Role | Scope and authority |
+|---|---|
+| Platform administrator | All workspaces and onboarding; organization reports still obey client consent |
+| Client administrator | Own client, projects, users, policies, providers, jobs and approvals; can authorize its aggregate reporting |
+| Project operator | Assigned project's environments: read, add jobs, cycle, scale/reset/replay/advance; cannot approve |
+| Approver | Read assigned project's environments and approve/reject; cannot run cycles or replace queues |
+| Viewer | Read/export assigned project's environments; cannot change scheduling or access |
+
+Memberships are project-scoped (all its environments); environment-only role grants are not implemented. A user may have multiple roles. Administrators create local accounts with initial passwords; users can change their password and revoke all their sessions. Platform administration is bootstrapped to the initial `admin` account; there is no UI for creating additional platform administrators. Client administrators cannot link identities from unrelated clients. Platform administrators can link an existing user to another client. Removing a membership is effective on subsequent requests without requiring sign-out.
+
+The header workspace selector controls the entire dashboard. Every data API requires a session cookie plus `?environment_id=<id>` or `X-Environment-ID`. A selector can be omitted only when the account has exactly one accessible environment. Guessed inaccessible scopes return 404; missing sign-in returns 401; insufficient role returns 403. Scope is checked before job lookup, exports, analysis, replay, reset, clock advancement or frozen evidence. `project=name` filters only groups within that authorized environment. Evidence IDs are local to an environment; always keep the environment ID with an evidence link. Public health/schema/static pages contain no workload data.
+
+### Storage and configuration
+
+```text
+Browser sign-in / workspace selector / administration
+                         |
+              FastAPI authorization boundary
+                 /                    \
+  <DATABASE_PATH>.control.db      Authorized environment
+  users / memberships             isolated SQLite scheduler store
+  clients / projects              jobs / clock / frozen audit / replay
+  environments / sessions                    |
+  consent / admin events          same deterministic engine + scoped provider
+```
+
+The original environment uses DATABASE_PATH. New environment databases live in its sibling `environments/<environment-id>.db`. Back up the control database AND all environment databases together. Generated state/bootstrap credentials stay under ignored `data/` by default. If customizing DATABASE_PATH outside data/, protect and ignore that directory yourself. Local file administrators retain access to all stores; this is application isolation, not separate hosts or encryption.
+
+For Electricity Maps, `/admin` displays the exact environment variable name, e.g. `VERDANT_EM_TOKEN_<UPPERCASE_ENVIRONMENT_ID_WITH_UNDERSCORES>`. Put its value in the server environment or `.env`, restart, and select/save that environment's provider. Only that environment reads that token. No credential value is accepted by the browser configuration API or returned to users. The legacy ELECTRICITY_MAPS_TOKEN applies only to env-default. Provider choices and caches are environment-specific. Shared public recorded GB data remains available at original dates. Missing/invalid credentials retain whole-curve SIMULATED fallback. External LLM narration is intentionally disabled at the authenticated platform boundary until per-client outbound-data consent and scoped LLM credentials are implemented; the standalone adapter/tests remain available.
+
+Project policy can raise the platform's minimum percentage savings, absolute savings and SLA buffer. It cannot weaken them or change the 14:00 baseline, criticality protection or dependency rules. Applied decisions remain frozen; approvals revalidate current temporal/dependency feasibility with the current buffer. Policy/provider changes apply to future evaluations, not automatic reconsideration of prior decisions. Restart after changing deployment-level settings; existing project policies cannot reduce deployment minima.
+
+### Client-authorized organization reporting
+
+Clients default to **sharing off**. An explicitly assigned client administrator changes reporting permission in `/admin`; platform-admin status alone cannot consent. `/api/organization/report` is platform-admin-only and returns client/project/environment aggregate modeled SCI totals and provenance, never job names, owners, raw decisions or credentials. Opted-out clients are omitted entirely. Revocation takes effect on the next report request; previously downloaded reports cannot be recalled. Platform administrators retain administrative workspace access independently of portfolio-report consent; consent is not a deny-access control against platform operators.
+
+### Focused verification and limitations
+
+For this change, use `.venv/Scripts/python.exe -m pytest -q tests/test_access.py` for essential identity/isolation/role/consent checks. The legacy API fixture now signs in; `python run.py --test` remains available but was not run in this session, per the request to minimize testing. `scripts/smoke.py` now requires SMOKE_PASSWORD (SMOKE_USERNAME defaults to admin) and accepts SMOKE_ENVIRONMENT_ID (default env-default); it resets that selected workspace. Do not point it at a workspace you need to preserve.
+
+Local passwords use salted PBKDF2-HMAC-SHA256 (600,000 iterations); opaque eight-hour sessions are stored hashed, with HttpOnly/SameSite=Strict cookies. Login attempts are bounded per username and address. Password changes revoke all sessions; sign-out revokes the current session. Use HTTPS and SESSION_COOKIE_SECURE=true for network deployment. This is a local demo access model, not an enterprise identity product: no SSO/OIDC, MFA, email invitations, automated password recovery, client-hosted deployment automation, real workload credentials/execution adapter or security certification is claimed. The default file permissions inherit the host's access controls on Windows; protect the deployment directory. One server process is supported; provider caches, policy refresh and store locks are local to that process. Login throttling can temporarily block a shared address. No live-provider success, Docker run, measured savings or customer validation was performed in this session.
 
 ## Architecture
 
@@ -160,9 +209,9 @@ A measured local offline 500-job cycle completed in 2.215 seconds during this se
 
 `GET /api/analysis/flexibility` and **Analyze flexibility** compare +/-1h, +/-2h, +/-4h and +/-8h start windows around each job's **original 14:00 local baseline on its earliest-start date**. Windows are clipped to original earliest start, current clock, runtime, deadline and buffer. The unchanged engine and dual thresholds evaluate independent flexible jobs with feasible baselines. Protected, linked, rejected and infeasible jobs are excluded; no approvals are invented. Existing decisions use frozen curves, unevaluated jobs use the selected provider, and sources/exclusions are returned per scenario and job. These are hypothetical modeled savings, never added to applied totals; state and audit history remain unchanged. Changing queue state invalidates the displayed analysis.
 
-Jobs accept `project` and `team`, both defaulting to `default`. The dashboard project selector filters queue, approvals, carbon cards, current reports/exports, audit list and sensitivity. `?project=name` is supported on state, jobs, report, current export, logs and flexibility endpoints. Reports include per-project rollups; weekly replay remains its separate global seeded experiment. Project filtering is presentation only: scheduling and dependency checks always consider the complete queue, including cross-project links.
+Jobs accept `project` and `team`, both defaulting to `default`. The dashboard project selector filters queue, approvals, carbon cards, current reports/exports, audit list and sensitivity. `?project=name` is supported on state, jobs, report, current export, logs and flexibility endpoints. Reports include per-project rollups; weekly replay remains its separate global seeded experiment. The legacy `project` string is now a workload-group label/filter inside one authorized environment. Scheduling and dependency checks consider that entire environment queue. Stable `project_id` identifies the actual access-controlled project; cross-environment dependencies are rejected.
 
-Approvals and rejections require `approver_name` plus `comment`, recorded in append-only audit history. **There is still no authentication**: this is self-reported attribution, not verified identity, authorization, tenant isolation or RBAC. Old job records load with default project/team fields; old audit rows remain immutable and readable. New curves and optional explanation records also have append-only triggers. Complete evidence is available on demand at `/api/logs/{id}/evidence`; only the best three and chosen candidate are retained inline, and all candidates can be reconstructed using the frozen curve and recorded rules.
+Approvals and rejections require a signed-in approver/client administrator/platform administrator and a `comment`. The server records the session user ID and display name; a supplied legacy `approver_name` cannot impersonate another reviewer. Old job records load with default project/team fields; old audit rows remain immutable and readable. New curves and optional explanation records also have append-only triggers. Complete evidence is available on demand at `/api/logs/{id}/evidence`; only the best three and chosen candidate are retained inline, and all candidates can be reconstructed using the frozen curve and recorded rules.
 
 ## Environment variables
 
@@ -180,7 +229,10 @@ Copy `.env.example` to `.env` if overriding defaults. Never commit `.env`.
 | `SYNTHETIC_SEED` | `42` | Reproducible synthetic curves |
 | `CARBON_PROVIDER` | `auto` | `auto`, `synthetic`, `electricity_maps`, `uk`, or `recorded` |
 | `RECORDED_CARBON_PATH` | `app/providers/recordings/gb-recorded.json` | Version 1 recorded intensity JSON |
-| `ELECTRICITY_MAPS_TOKEN` | empty | Optional live API credentials |
+| `ELECTRICITY_MAPS_TOKEN` | empty | Legacy token for env-default only; never inherited by new environments |
+| `VERDANT_ADMIN_PASSWORD` | generated on first launch | Initial local admin password, 12+ characters; ignored after account exists |
+| `SESSION_COOKIE_SECURE` | false | Set true behind HTTPS; local HTTP demo uses false |
+| `VERDANT_EM_TOKEN_<ENV_ID>` | empty | Per-environment Electricity Maps credential; hyphens in ID become underscores, uppercase |
 | `PROVIDER_TIMEOUT_SECONDS` | `3` | Timeout per provider HTTP operation |
 | `PROVIDER_RETRIES` | `1` | Additional retries per endpoint, maximum 3 |
 | `PROVIDER_CACHE_SECONDS` | `300` | Zone data cache TTL |
@@ -188,7 +240,7 @@ Copy `.env.example` to `.env` if overriding defaults. Never commit `.env`.
 | `OPENAI_API_KEY` | empty | Optional OpenAI key |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Configurable Responses-compatible text model |
 
-Optional narration sends only a detached decision summary (numbers, rules, source and deterministic explanation) to OpenAI with `store=false`. Names, owners and credentials are not included. External service charges and that service's data policies apply when explicitly enabled. Model access is account-dependent; any request failure falls back to deterministic text. No LLM is used to infer or downgrade criticality; users supply it explicitly.
+The standalone optional narration adapter (disabled by the authenticated platform) sends only a detached decision summary (numbers, rules, source and deterministic explanation) to OpenAI with `store=false`. Names, owners and credentials are not included. External service charges and that service's data policies apply when explicitly enabled. Model access is account-dependent; any request failure falls back to deterministic text. No LLM is used to infer or downgrade criticality; users supply it explicitly.
 
 ## API and verification
 
@@ -212,7 +264,7 @@ POST /api/demo/replay                 {}
 
 `422` is invalid input; `409` is a conflicting/expired action; `404` is an unknown job. Timestamps must include `Z` or an offset. The add-job UI explicitly uses UTC input; display times use each job's IANA timezone. Input bounds: runtime 1–720 minutes, positive power up to 10,000 kW, a positive earliest/deadline window at most 48 hours, and at most 20 existing prerequisites.
 
-With the server running, execute `.venv\Scripts\python.exe scripts\smoke.py` on Windows or `.venv/bin/python scripts/smoke.py` on Unix. **This explicitly resets demo jobs**, checks real HTTP routes and writes `docs/demo-evidence.json`; it leaves a clean evaluated queue ready to present. Earlier audit history remains available through `all_runs=true`.
+With the server running and SMOKE_PASSWORD set for an authorized account (see client/project setup above), execute `.venv\Scripts\python.exe scripts\smoke.py` on Windows or `.venv/bin/python scripts/smoke.py` on Unix. **This explicitly resets demo jobs**, checks real HTTP routes and writes `docs/demo-evidence.json`; it leaves a clean evaluated queue ready to present. Earlier audit history remains available through `all_runs=true`.
 
 ## Docker
 
@@ -225,7 +277,7 @@ Container runs as a non-root user. `.env`, local databases and virtual environme
 
 ## Assumptions and deliberate limits
 
-- This is a trusted local, single-process demo. It has no login, authenticated approver identity, RBAC, tenancy, rate limiting, or real Airflow/Kubernetes integration. Bind to loopback by default. A real pilot needs these controls before network exposure.
+- This is a local, single-process demo with password sign-in, scoped roles, environment isolation and bounded login attempts. It has no enterprise SSO/MFA, general API quotas or real Airflow/Kubernetes integration. Bind to loopback by default; a network pilot needs HTTPS, enterprise identity integration and independent security review.
 - One run has constant estimated power and runtime. No shared-cluster capacity, concurrency limits, calendars, data locality, tariff cost, retry behavior, or runtime uncertainty beyond the safety buffer is modeled.
 - Baseline is always 14:00 local on the earliest-start date, even if that counterfactual is infeasible. Infeasible baseline replacements always require review and are flagged in the report. No emergency reschedule is silently treated as normal automatic carbon optimization.
 - The 30-minute grid is aligned in UTC. Supported zones have whole-hour or half-hour offsets, so local half-hour alignment also holds; IANA rules account for DST.

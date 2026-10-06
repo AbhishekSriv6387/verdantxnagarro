@@ -37,6 +37,11 @@ class SchedulerService:
     def now(self) -> datetime:
         return datetime.fromisoformat(self.store.get("clock"))
 
+    def _bind(self, job: Job) -> Job:
+        for key, value in self.store.get("scope", {}).items():
+            setattr(job, key, value)
+        return job
+
     def reset(self) -> dict:
         clock = ceil_slot(datetime.now(timezone.utc)) if self.settings.electricity_token else DEMO_START
         # Recorded replay is explicitly historical and never time-shifts grid values.
@@ -49,7 +54,7 @@ class SchedulerService:
             self.store.set("run_id", str(uuid4()))
             self.store.set("replay", None)
             for job in seed_jobs(clock, zone_override=zone):
-                self.store.save(job)
+                self.store.save(self._bind(job))
         return {"clock": clock.isoformat(), "jobs": 25, "audit_history_preserved": True}
 
     def scale(self, n: int = 25) -> dict:
@@ -60,7 +65,7 @@ class SchedulerService:
             self.store.set("run_id", str(uuid4()))
             self.store.set("replay", None)
             for job in jobs:
-                self.store.save(job)
+                self.store.save(self._bind(job))
         return {"jobs": n, "seed": self.settings.seed, "workload_source": "SIMULATED WORKLOAD",
                 "audit_history_preserved": True}
 
@@ -75,17 +80,18 @@ class SchedulerService:
         end = max(job.sla_deadline, job.baseline_start + job.duration)
         return self.provider.curve(job.zone, start, end)
 
-    def _log(self, job: Job, decision: dict, actor: str, comment: str | None = None, approver_name: str | None = None) -> int:
+    def _log(self, job: Job, decision: dict, actor: str, comment: str | None = None, approver_name: str | None = None, user_id: str | None = None) -> int:
         entry = {**decision, "timestamp": self.now.isoformat(),
                  "recorded_at": datetime.now(timezone.utc).isoformat(), "run_id": self.store.get("run_id"),
                  "job_id": job.id, "job_name": job.name, "workload_source": job.workload_source, "actor": actor, "comment": comment, "approver_name": approver_name,
-                 "project": job.project, "team": job.team}
+                 "project": job.project, "team": job.team, "user_id": user_id,
+                 "tenant_id": job.tenant_id, "project_id": job.project_id, "environment_id": job.environment_id}
         decision_id = self.store.append(entry)
         logger.info("scheduling_decision", extra={"job_id": job.id, "outcome": decision["outcome"], "actor": actor})
 
         return decision_id
 
-    def cycle(self) -> dict:
+    def cycle(self, initiated_by: str | None = None) -> dict:
         changed = []
         narration_inputs = []
         with self.store.transaction():
@@ -115,8 +121,8 @@ class SchedulerService:
                 elif outcome == "NEEDS_APPROVAL":
                     job.proposal_start, job.status = chosen, "needs_approval"
                 job.decision, job.fingerprint = decision, fingerprint
-                self.store.save(job)
-                decision_id = self._log(job, decision, "agent")
+                self.store.save(self._bind(job))
+                decision_id = self._log(job, decision, "agent", user_id=initiated_by)
                 narration_inputs.append((decision_id, copy.deepcopy(decision)))
                 changed.append({"job_id": job.id, "outcome": outcome, "source": decision["source"]})
         # All scheduling state and deterministic evidence have committed before external prose.
@@ -130,7 +136,7 @@ class SchedulerService:
                 logger.info("optional_explanation_unavailable")
         return {"processed": len(changed), "decisions": changed}
 
-    def review(self, job_id: str, action: str, comment: str, approver_name: str) -> Job:
+    def review(self, job_id: str, action: str, comment: str, approver_name: str, user_id: str | None = None) -> Job:
         from app.models import ApprovalInput
         validated = ApprovalInput(action=action, comment=comment, approver_name=approver_name)
         comment, approver_name = validated.comment, validated.approver_name
@@ -153,8 +159,8 @@ class SchedulerService:
                 decision["rule_ids"].append("HUMAN_REJECTION_NO_DISPATCH")
                 decision["explanation"] = "Human rejected this proposal; no job is dispatched and no savings are credited."
             job.decision = decision
-            self.store.save(job)
-            self._log(job, decision, "human", comment, approver_name)
+            self.store.save(self._bind(job))
+            self._log(job, decision, "human", comment, approver_name, user_id)
         return job
 
     def add(self, data: JobInput) -> Job:
@@ -166,7 +172,7 @@ class SchedulerService:
                 raise Conflict("Every dependency must reference an existing job")
             # The API only creates new IDs and dependencies point backward, so cycles cannot be introduced.
             job = Job(**data.model_dump(), id=str(uuid4()), baseline_start=baseline_for(data))
-            self.store.save(job)
+            self.store.save(self._bind(job))
         return job
 
     def advance(self, minutes: int) -> dict:
@@ -177,7 +183,7 @@ class SchedulerService:
             for job in self.store.jobs():
                 if job.status in ("scheduled", "approved") and job.scheduled_start and job.scheduled_start + job.duration <= now:
                     job.status = "completed"
-                    self.store.save(job)
+                    self.store.save(self._bind(job))
                     self._log(job, {**(job.decision or {}), "outcome": "COMPLETED",
                                    "explanation": "Simulated run completed; carbon remains an estimate, not measured telemetry."}, "agent")
                     completed += 1
@@ -191,7 +197,7 @@ class SchedulerService:
             if not d:
                 continue
             applied = job.status in ("scheduled", "approved", "completed") and job.scheduled_start is not None
-            rows.append({"job_id": job.id, "name": job.name, "project": job.project, "team": job.team, "zone": job.zone, "status": job.status,
+            rows.append({"tenant_id": job.tenant_id, "project_id": job.project_id, "environment_id": job.environment_id, "job_id": job.id, "name": job.name, "project": job.project, "team": job.team, "zone": job.zone, "status": job.status,
                          "source": d["source"], "workload_source": job.workload_source, "included": applied, "energy_kwh": d["energy_kwh"],
                          "embodied_g": d["embodied_g"], "functional_unit": "one job run",
                          "baseline_start": job.baseline_start.isoformat(),
@@ -237,6 +243,7 @@ class SchedulerService:
             now = DEMO_START + timedelta(days=day)
             jobs = seed_jobs(now, prefix=f"week-{day + 1}", day=day)
             for job in jobs:
+                self._bind(job)
                 curve = synthetic.curve(job.zone, min(job.earliest_start, job.baseline_start),
                                         max(job.sla_deadline, job.baseline_start + job.duration))
                 decision = decide(job, jobs, now, curve, self.settings)
