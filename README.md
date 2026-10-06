@@ -6,7 +6,7 @@ Verdant finds lower-carbon execution windows for enterprise batch jobs, automati
 
 **All displayed savings are modeled SCI estimates.** The default dataset is prominently labeled **SIMULATED**. The app dispatches no real workloads and makes no claim of measured emissions reductions or completed customer validation.
 
-**🎬 Demo video:** [*Link to be added after recording*]
+**🎬 Demo video:** https://nagarro-my.sharepoint.com/:v:/p/abhishek_srivastava04/IQDo9_6vL5JYSJ4wjpMCfT7PAdGIg46VXuybIGwdBVCeasg?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=UhhIsJ
 
 ### Hackathon Deliverables
 
